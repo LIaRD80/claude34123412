@@ -1,8 +1,9 @@
 # Stars RNG ⭐
 
 Игра в жанре RNG для Roblox, вдохновлённая Pet RNG / Sol's RNG.
-Игрок жмёт кнопку **ROLL** и получает случайную звезду — от обычной жёлтой
-до секретной «Вселенной» с шансом 1 к миллиону.
+Жмёшь **ROLL** → летит лента с карточками звёзд → она тормозит и
+останавливается на той звезде, которую тебе выпало (от обычной жёлтой
+до секретной «Вселенной» с шансом 1 к миллиону).
 
 ## Звёзды
 
@@ -17,19 +18,9 @@
 | Чёрная дыра | Godly | 1/100 000 |
 | Вселенная | Secret | 1/1 000 000 |
 
-Редкости легко балансируются в `src/ReplicatedStorage/StarsConfig.lua`.
+Шансы и цвета — в `src/ReplicatedStorage/StarsConfig.lua`.
 
-## Фичи MVP
-
-- Кнопка **ROLL** с кулдауном 3 сек
-- Серверный анти-спам (нельзя обойти клиентом)
-- Инвентарь звёзд с подсчётом
-- Возможность «надеть» звезду — вокруг персонажа появляется аура
-  (PointLight + ParticleEmitter) её цвета
-- Полноэкранный «reveal» для редкостей **Legendary** и выше
-- Весь UI собирается из Lua-скрипта (без `.rbxmx`)
-
-## Структура
+## Структура файлов
 
 ```
 default.project.json              ← Rojo-конфиг
@@ -40,43 +31,80 @@ src/
     StarsServer.server.lua       ← обработка Roll / Equip, инвентарь
     AuraServer.server.lua        ← аура (свет + частицы) на персонаже
   StarterPlayerScripts/
-    StarsClient.client.lua       ← UI, кнопка Roll, инвентарь, reveal
+    StarsClient.client.lua       ← логика: кнопка → ролл → лента → результат
 ```
+
+## ❗ UI ты делаешь сам в StarterGui
+
+Скрипт ищет твои элементы **по имени**. Достаточно сделать вот это:
+
+```
+StarterGui/
+  StarsGui                         (ScreenGui) — обязательно
+    RollButton                     (TextButton)  ← обязательно
+      CooldownBar                  (Frame)       — опц., Size.X.Scale тянется 0→1
+    RollsLabel                     (TextLabel)   — опц., текст "Роллы: 12"
+    ResultLabel                    (TextLabel)   — опц., текст "Сверхновая • Mythic • 1/10000"
+    InventoryButton                (TextButton)  — опц., открывает InventoryFrame
+    InventoryFrame                 (Frame)       — опц., изначально Visible=false
+      InventoryList                (ScrollingFrame, желательно с UIGridLayout)
+        ItemTemplate               (Frame)       — опц., шаблон карточки. Внутри ищутся:
+          NameLabel                (TextLabel)
+          CountLabel               (TextLabel)
+          EquipButton              (TextButton)
+```
+
+- **Минимум, что нужно** — `StarsGui` и в нём `RollButton`. Остальное опционально:
+  если чего-то нет, скрипт просто пропустит его.
+- Поиск по имени **рекурсивный**, так что элементы можно класть в любые контейнеры/декоры.
+- Анимация ленты прокрутки **создаётся скриптом сама** поверх твоего GUI, рисовать её
+  в StarterGui не надо.
+
+## Анимация ленты
+
+При ролле скрипт:
+1. Затемняет экран
+2. Создаёт длинную горизонтальную полосу из ~60 карточек звёзд (взвешенно: реже — Mythic/Secret)
+3. На позиции №54 ставит ту звезду, которую вернул сервер
+4. Пускает Tween с `Quint Out` на ~4 секунды — лента летит и плавно тормозит
+5. Выигравшая карточка пульсирует и подсвечивается
+6. Через 1.5 сек оверлей плавно закрывается, обновляется `ResultLabel` и `RollsLabel`
 
 ## Как открыть в Roblox Studio
 
-### Вариант 1: через Rojo (рекомендуется)
+### Через Rojo (рекомендуется)
 
-1. Установите Rojo: <https://rojo.space/docs/v7/getting-started/installation/>
-2. В корне репо запустите:
+1. Установи Rojo: <https://github.com/rojo-rbx/rojo/releases/latest>
+2. Склонируй репо: `git clone <url>` или через GitHub Desktop
+3. В папке репо запусти:
    ```bash
    rojo serve
    ```
-3. В Studio установите плагин Rojo и подключитесь к серверу (порт 34872).
+4. В Studio: плагин Rojo → **Connect** → файлы появятся в нужных местах.
+5. В **StarterGui** собери свой `StarsGui` (см. структуру выше) и жми **Play** ▶️
 
-### Вариант 2: вручную скопировать скрипты
+### Вручную (без Rojo)
 
-1. В Roblox Studio создайте пустое место.
-2. В **ReplicatedStorage** создайте `ModuleScript` с именем `StarsConfig`
-   и вставьте содержимое `src/ReplicatedStorage/StarsConfig.lua`.
-3. В **ServerScriptService** создайте два `Script`:
-   - `StarsServer` ← `src/ServerScriptService/StarsServer.server.lua`
-   - `AuraServer` ← `src/ServerScriptService/AuraServer.server.lua`
-4. В **StarterPlayer → StarterPlayerScripts** создайте `LocalScript`
-   `StarsClient` ← `src/StarterPlayerScripts/StarsClient.client.lua`
-5. Нажмите **Play** — кнопка ROLL появится снизу по центру.
+1. В Roblox Studio в **ReplicatedStorage** → ModuleScript `StarsConfig` ← вставь
+   `src/ReplicatedStorage/StarsConfig.lua`
+2. В **ServerScriptService** → два Script:
+   - `StarsServer` ← `StarsServer.server.lua`
+   - `AuraServer` ← `AuraServer.server.lua`
+3. В **StarterPlayer → StarterPlayerScripts** → LocalScript `StarsClient`
+   ← `StarsClient.client.lua`
+4. В **StarterGui** собери `StarsGui` с `RollButton` (и опциональными элементами).
+5. Save → Play.
 
 ## Дальше можно добавить
 
-- 💾 Сохранение инвентаря в `DataStoreService` (сейчас только сессия)
-- 🪐 Биомы: ночь даёт +удачу синим звёздам, и т.д.
-- 🛒 Магазин Gamepass: **Lucky 2x**, **Auto-Roll**, **Fast Roll**
-- 📜 Индекс / Codex с прогрессом «собрал X из 8»
-- 🤝 Trading между игроками
-- 🔊 Звуки: ролл / редкость / секрет
+- 💾 Сохранение инвентаря через `DataStoreService`
+- 🪐 Биомы (день/ночь/космос) с бонусами к шансам
+- 🛒 Магазин Gamepass: Lucky 2x, Auto-Roll, Fast Roll
+- 📜 Codex/индекс «собрал X из 8»
+- 🔊 Звуки тиканья ленты и финального лендинга
 - 🏆 Бейджи за получение редких звёзд
 
-## Возрастная аудитория
+## Аудитория
 
 Дизайн рассчитан на 9+: одна большая кнопка, понятные цвета редкости,
-крупный шрифт `FredokaOne`, эмодзи и яркая мультяшная палитра.
+крупный шрифт, эмодзи, мультяшная палитра, понятная CS:GO-style лента.
