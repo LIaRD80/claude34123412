@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🦖 Dino RNG</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+html, body {
+    width:100%; height:100%;
+    overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Comic Sans MS",sans-serif;
+    color:#fff;
+    background: linear-gradient(180deg, #6cd, #6b8e23);
+    touch-action:manipulation;
+}
+
+#app {
+    width:100vw; height:100vh;
+    position:relative;
+    overflow:hidden;
+    background: linear-gradient(180deg, #87ceeb 0%, #4a8b3a 60%, #2a5a1a 100%);
+}
+
+/* Background scenery */
+#scenery {
+    position:absolute; inset:0;
+    pointer-events:none;
+    overflow:hidden;
+}
+.cloud {
+    position:absolute;
+    background: rgba(255,255,255,0.85);
+    border-radius: 50px;
+    box-shadow: 0 0 30px rgba(255,255,255,0.5);
+    animation: drift linear infinite;
+}
+@keyframes drift {
+    from { transform: translateX(-300px); }
+    to { transform: translateX(calc(100vw + 300px)); }
+}
+.sun {
+    position:absolute;
+    top: 30px; right: 50px;
+    width:80px; height:80px;
+    background: radial-gradient(circle, #ffff66 0%, #ffaa00 70%, transparent 100%);
+    border-radius:50%;
+    box-shadow: 0 0 60px #ffaa00;
+    animation: sunPulse 4s ease-in-out infinite;
+}
+@keyframes sunPulse {
+    0%,100% { transform:scale(1); }
+    50% { transform:scale(1.1); }
+}
+.palm {
+    position:absolute;
+    bottom: 0;
+    font-size: 120px;
+    filter: drop-shadow(0 0 8px rgba(0,0,0,0.3));
+}
+
+/* Top bar */
+#topBar {
+    position:absolute;
+    top: 10px; left: 50%;
+    transform: translateX(-50%);
+    display:flex;
+    gap:10px;
+    z-index: 10;
+    flex-wrap: wrap;
+    justify-content:center;
+    max-width: 96%;
+}
+.stat-pill {
+    background: linear-gradient(135deg, rgba(80,50,20,0.95), rgba(50,30,10,0.95));
+    border: 3px solid #4a2a10;
+    border-radius: 30px;
+    padding: 8px 16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight: 800;
+    font-size: 16px;
+    box-shadow: 0 4px 0 #2a1a08, 0 6px 15px rgba(0,0,0,0.4);
+}
+.stat-pill .ico { font-size: 22px; }
+.coin { color:#ffd700; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+.luck { color:#aaffaa; }
+
+/* Side panel buttons */
+.sideBtn {
+    position:absolute;
+    background: linear-gradient(180deg, #6b8e23, #4a6a1a);
+    border: 3px solid #2a4a0a;
+    border-radius: 18px;
+    width: 70px; height: 70px;
+    cursor: pointer;
+    font-size: 32px;
+    color: #fff;
+    box-shadow: 0 4px 0 #1a3a0a, 0 6px 15px rgba(0,0,0,0.4);
+    transition: transform 0.1s;
+    z-index: 10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.sideBtn:hover { transform: translateY(-3px); box-shadow: 0 7px 0 #1a3a0a; }
+.sideBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1a3a0a; }
+.sideBtn .label {
+    position:absolute;
+    bottom: -22px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.6);
+    padding: 2px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+#indexBtn { top: 100px; left: 16px; }
+#shopBtn { top: 200px; left: 16px; }
+#statsBtn { top: 300px; left: 16px; }
+#biomeBtn { top: 100px; right: 16px; }
+#autoBtn { top: 200px; right: 16px; }
+
+/* Main area */
+#mainStage {
+    position:absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
+    max-width: 800px;
+    text-align:center;
+    z-index: 5;
+}
+
+#biomeBanner {
+    background: linear-gradient(90deg, rgba(0,0,0,0.6), rgba(0,0,0,0.3), rgba(0,0,0,0.6));
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 15px;
+    padding: 8px 20px;
+    margin-bottom: 20px;
+    display:inline-flex;
+    align-items:center;
+    gap: 12px;
+    backdrop-filter: blur(4px);
+}
+#biomeBanner .bIcon { font-size: 28px; }
+#biomeBanner .bName { font-size: 18px; font-weight: 800; }
+#biomeBanner .bMul { font-size: 13px; opacity: 0.85; }
+
+/* The reel */
+#reelBox {
+    background: linear-gradient(180deg, rgba(60,40,20,0.95), rgba(30,20,8,0.95));
+    border: 5px solid #5a3a1a;
+    border-radius: 25px;
+    box-shadow: 0 6px 0 #2a1a05, 0 10px 30px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.5);
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+    margin: 0 auto;
+    max-width: 700px;
+}
+
+#reelViewport {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+    border-radius: 15px;
+    background: linear-gradient(180deg, #1a1a3a 0%, #2a2a4a 50%, #1a1a3a 100%);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.7);
+}
+@media (max-width: 600px) {
+    #reelViewport { height: 140px; }
+}
+
+#reelTrack {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    will-change: transform;
+}
+
+.reel-card {
+    flex-shrink: 0;
+    width: 160px;
+    height: 160px;
+    margin: 0 6px;
+    border-radius: 15px;
+    background: linear-gradient(160deg, rgba(255,255,255,0.1), rgba(0,0,0,0.3));
+    border: 3px solid rgba(255,255,255,0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+@media (max-width: 600px) {
+    .reel-card { width: 120px; height: 120px; }
+}
+
+.reel-card .dino {
+    font-size: 70px;
+    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.5));
+    line-height: 1;
+}
+@media (max-width: 600px) {
+    .reel-card .dino { font-size: 54px; }
+}
+.reel-card .name {
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 4px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    text-align:center;
+    padding: 0 4px;
+}
+
+/* Rarity styles */
+.r-common    { border-color: #999; background: linear-gradient(160deg, #aaa, #555); }
+.r-uncommon  { border-color: #6f6; background: linear-gradient(160deg, #6f6, #283); }
+.r-rare      { border-color: #6af; background: linear-gradient(160deg, #6af, #248); }
+.r-epic      { border-color: #a6f; background: linear-gradient(160deg, #b8f, #538); }
+.r-legendary { border-color: #ffd700; background: linear-gradient(160deg, #ffd700, #b87000); box-shadow: 0 0 20px rgba(255,200,0,0.6); }
+.r-mythic    { border-color: #f6a; background: linear-gradient(160deg, #f6c, #832); box-shadow: 0 0 25px rgba(255,100,200,0.7); }
+.r-divine    { border-color: #fa3; background: linear-gradient(160deg, #fd5, #f63, #c00); box-shadow: 0 0 30px rgba(255,150,0,0.8); animation: divineShimmer 2s linear infinite; }
+@keyframes divineShimmer {
+    0%,100% { filter: brightness(1) hue-rotate(0deg); }
+    50% { filter: brightness(1.3) hue-rotate(20deg); }
+}
+.r-secret    { border-color: #fff; background: linear-gradient(45deg, #ff00aa, #00aaff, #ffff00, #ff00ff, #00ffff); background-size: 400% 400%; box-shadow: 0 0 40px rgba(255,255,255,0.9); animation: secretGlow 1.5s linear infinite, secretShift 3s linear infinite; }
+@keyframes secretGlow {
+    0%,100% { box-shadow: 0 0 40px #ff00ff, 0 0 60px #00ffff; }
+    50% { box-shadow: 0 0 50px #ffff00, 0 0 80px #ff00ff; }
+}
+@keyframes secretShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Center pointer */
+#pointer {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    background: linear-gradient(180deg, #ffd700, #ff6b00);
+    box-shadow: 0 0 20px #ffd700, 0 0 30px #ff6b00;
+    z-index: 3;
+    pointer-events: none;
+}
+#pointer::before, #pointer::after {
+    content:'';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+}
+#pointer::before {
+    top: -2px;
+    border-top: 14px solid #ffd700;
+    filter: drop-shadow(0 0 6px #ff8800);
+}
+#pointer::after {
+    bottom: -2px;
+    border-bottom: 14px solid #ffd700;
+    filter: drop-shadow(0 0 6px #ff8800);
+}
+
+/* Side fade */
+#reelViewport::before, #reelViewport::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 80px;
+    pointer-events: none;
+    z-index: 2;
+}
+#reelViewport::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(20,15,30,0.9), transparent);
+}
+#reelViewport::after {
+    right: 0;
+    background: linear-gradient(-90deg, rgba(20,15,30,0.9), transparent);
+}
+
+/* Big Roll button */
+#rollBtn {
+    margin-top: 24px;
+    background: linear-gradient(180deg, #ffcc00 0%, #ff8800 100%);
+    border: 5px solid #aa5500;
+    border-radius: 50px;
+    color: #000;
+    font-size: 28px;
+    font-weight: 900;
+    padding: 18px 50px;
+    cursor: pointer;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 8px 0 #884400, 0 12px 30px rgba(0,0,0,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 8px 0 #884400, 0 12px 30px rgba(0,0,0,0.4), 0 0 0 rgba(255,200,0,0.6); }
+    50% { box-shadow: 0 8px 0 #884400, 0 12px 30px rgba(0,0,0,0.4), 0 0 30px rgba(255,200,0,0.8); }
+}
+#rollBtn:hover { transform: translateY(-3px); box-shadow: 0 11px 0 #884400, 0 14px 30px rgba(0,0,0,0.4); }
+#rollBtn:active { transform: translateY(4px); box-shadow: 0 4px 0 #884400, 0 6px 15px rgba(0,0,0,0.4); }
+#rollBtn:disabled { background: linear-gradient(180deg, #888, #555); border-color: #333; cursor: not-allowed; animation: none; }
+@media (max-width: 600px) {
+    #rollBtn { font-size: 22px; padding: 14px 35px; }
+}
+
+#rollBtn .price {
+    display:block;
+    font-size: 14px;
+    margin-top: 4px;
+    color: #aa3300;
+}
+
+/* Result modal */
+.modal {
+    position:fixed;
+    inset:0;
+    z-index:200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+}
+.modal.active { display:flex; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.result-panel {
+    background: linear-gradient(160deg, rgba(60,40,80,0.98), rgba(20,10,40,0.98));
+    border: 5px solid var(--rarity-border, #ffd700);
+    border-radius: 25px;
+    padding: 30px 40px;
+    text-align:center;
+    box-shadow: 0 0 60px var(--rarity-glow, rgba(255,200,0,0.7));
+    max-width: 90vw;
+    animation: resultPop 0.6s cubic-bezier(.68,-0.55,.27,1.55);
+}
+@keyframes resultPop {
+    0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+    60% { transform: scale(1.15) rotate(8deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.result-rarity {
+    font-size: 22px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    color: var(--rarity-color, #ffd700);
+    text-shadow: 0 2px 0 #000, 0 0 15px var(--rarity-color, #ffd700);
+}
+.result-dino {
+    font-size: 140px;
+    margin: 10px 0;
+    filter: drop-shadow(0 0 20px var(--rarity-glow, #ffd700));
+    animation: bounce 1s ease-in-out infinite;
+}
+@keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+}
+.result-name {
+    font-size: 32px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 0 #000;
+}
+.result-chance {
+    font-size: 16px;
+    opacity: 0.9;
+    background: rgba(0,0,0,0.4);
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 12px;
+}
+.result-mutation {
+    background: linear-gradient(90deg, #ffd700, #ff00aa);
+    color: #000;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 800;
+    margin: 6px 4px;
+    display: inline-block;
+    box-shadow: 0 0 15px rgba(255,200,0,0.5);
+    animation: mutGlow 1s ease-in-out infinite;
+}
+@keyframes mutGlow {
+    0%,100% { box-shadow: 0 0 15px rgba(255,200,0,0.5); }
+    50% { box-shadow: 0 0 30px rgba(255,100,255,0.8); }
+}
+.result-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.bigBtn {
+    background: linear-gradient(180deg, #66cc44, #449922);
+    border: 3px solid #226611;
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 15px;
+    box-shadow: 0 4px 0 #114400;
+    transition: transform 0.1s;
+}
+.bigBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #114400; }
+.bigBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #114400; }
+.bigBtn.gold { background: linear-gradient(180deg, #ffcc00, #cc8800); border-color: #885500; box-shadow: 0 4px 0 #553300; color: #000; }
+.bigBtn.red  { background: linear-gradient(180deg, #ff5544, #cc2211); border-color: #661100; box-shadow: 0 4px 0 #330800; }
+
+/* New record! */
+.new-tag {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    background: linear-gradient(45deg, #ff00aa, #00aaff);
+    color: #fff;
+    font-weight: 900;
+    padding: 6px 12px;
+    border-radius: 15px;
+    transform: rotate(15deg);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    border: 3px solid #fff;
+    font-size: 14px;
+    animation: newTagPulse 1s ease-in-out infinite;
+}
+@keyframes newTagPulse {
+    0%,100% { transform: rotate(15deg) scale(1); }
+    50% { transform: rotate(15deg) scale(1.1); }
+}
+
+/* Panels */
+.side-panel {
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 380px;
+    max-width: 90%;
+    background: linear-gradient(160deg, rgba(20,15,40,0.97), rgba(40,20,60,0.97));
+    border-right: 4px solid #5a3a8a;
+    box-shadow: 5px 0 30px rgba(0,0,0,0.6);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+    z-index: 100;
+    overflow-y: auto;
+    padding: 20px;
+}
+.side-panel.right {
+    right: 0;
+    left: auto;
+    border-right: none;
+    border-left: 4px solid #5a3a8a;
+    transform: translateX(100%);
+    box-shadow: -5px 0 30px rgba(0,0,0,0.6);
+}
+.side-panel.active { transform: translateX(0); }
+
+.panel-header {
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+}
+.panel-title-big {
+    font-size: 24px;
+    font-weight: 900;
+    color: #ffd700;
+    text-shadow: 0 2px 0 #000;
+}
+.closeBtn {
+    background: rgba(255,0,0,0.5);
+    border: 2px solid #fff;
+    color: #fff;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+/* Index grid */
+#indexGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 8px;
+}
+.index-cell {
+    background: linear-gradient(160deg, rgba(0,0,0,0.5), rgba(0,0,0,0.7));
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 8px 4px;
+    text-align:center;
+    position: relative;
+    cursor: pointer;
+}
+.index-cell.discovered {
+    background: linear-gradient(160deg, rgba(80,60,20,0.6), rgba(60,40,10,0.7));
+    border-color: rgba(255,200,0,0.4);
+}
+.index-cell.discovered.r-legendary { border-color: #ffd700; box-shadow: 0 0 10px rgba(255,200,0,0.4); }
+.index-cell.discovered.r-mythic    { border-color: #f6a; box-shadow: 0 0 10px rgba(255,100,200,0.5); }
+.index-cell.discovered.r-divine    { border-color: #fa3; box-shadow: 0 0 12px rgba(255,150,0,0.6); }
+.index-cell.discovered.r-secret    { border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.7); }
+
+.index-cell .ico {
+    font-size: 42px;
+    line-height: 1;
+    filter: var(--icon-filter, none);
+}
+.index-cell.locked .ico { filter: brightness(0); }
+.index-cell .nm {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 4px;
+    word-break: break-word;
+}
+.index-cell.locked .nm { color: #888; }
+.index-cell .ch {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+.index-cell .own-count {
+    position:absolute;
+    top: 2px; right: 4px;
+    background: #ffd700;
+    color: #000;
+    border-radius: 8px;
+    padding: 1px 4px;
+    font-weight: 800;
+    font-size: 10px;
+}
+
+/* Shop items */
+.shop-item {
+    background: linear-gradient(160deg, rgba(0,0,0,0.5), rgba(0,0,0,0.7));
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.shop-item.equipped { border-color: #ffd700; box-shadow: 0 0 15px rgba(255,200,0,0.4); }
+.shop-item .row {
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.shop-item .icn { font-size: 32px; }
+.shop-item .ttl { font-weight: 800; font-size: 16px; flex:1; }
+.shop-item .dsc { font-size: 12px; opacity: 0.85; margin-bottom: 8px; }
+
+/* Biome selector */
+.biome-card {
+    background: linear-gradient(160deg, rgba(0,0,0,0.5), rgba(0,0,0,0.7));
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    position: relative;
+}
+.biome-card.active { border-color: #ffd700; box-shadow: 0 0 15px rgba(255,200,0,0.4); background: linear-gradient(160deg, rgba(80,60,0,0.5), rgba(60,40,0,0.7)); }
+.biome-card.locked { opacity: 0.5; }
+.biome-card .head { display:flex; gap: 10px; align-items:center; margin-bottom: 4px; }
+.biome-card .ic { font-size: 32px; }
+.biome-card .nm { font-weight: 800; font-size: 16px; flex:1; }
+.biome-card .info { font-size: 12px; opacity: 0.85; }
+
+/* Floating texts */
+.float-text {
+    position: fixed;
+    color: #ffd700;
+    font-weight: 900;
+    font-size: 22px;
+    text-shadow: 0 0 10px #000;
+    pointer-events: none;
+    animation: floatUp 1.5s forwards;
+    z-index: 150;
+}
+@keyframes floatUp {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -20px) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -120px) scale(1); }
+}
+
+/* Global feed */
+#globalFeed {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 96%;
+    max-width: 700px;
+    pointer-events: none;
+    z-index: 4;
+    display:flex;
+    flex-direction:column;
+    gap: 4px;
+}
+.feed-line {
+    background: rgba(0,0,0,0.6);
+    border: 2px solid var(--feed-color, #ffd700);
+    border-radius: 25px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 0 15px var(--feed-color, rgba(255,200,0,0.4));
+    animation: feedSlide 6s forwards;
+    backdrop-filter: blur(4px);
+}
+@keyframes feedSlide {
+    0% { opacity:0; transform: translateY(20px); }
+    10%, 85% { opacity:1; transform: translateY(0); }
+    100% { opacity:0; transform: translateY(-10px); }
+}
+
+/* Confetti / particles for big rolls */
+.particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 195;
+    font-size: 24px;
+    animation: particleFly 2s forwards;
+}
+@keyframes particleFly {
+    0% { opacity: 1; transform: translate(0, 0) scale(0); }
+    20% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(1.2); }
+    100% { opacity: 0; transform: translate(calc(var(--dx) * 2), calc(var(--dy) * 2 + 200px)) scale(0.8); }
+}
+
+#screenFlash {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 190;
+}
+#screenFlash.flash {
+    animation: screenFlashAnim 0.5s;
+}
+@keyframes screenFlashAnim {
+    0% { opacity: 0; }
+    30% { opacity: 0.9; }
+    100% { opacity: 0; }
+}
+
+/* Auto-roll indicator */
+#autoIndicator {
+    position: absolute;
+    top: 200px; right: 100px;
+    background: rgba(0,200,100,0.85);
+    border: 3px solid #fff;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 14px;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 0 20px rgba(0,255,150,0.6);
+    animation: autoBlink 1s linear infinite;
+}
+@keyframes autoBlink {
+    0%,100% { opacity: 0.9; }
+    50% { opacity: 1; box-shadow: 0 0 30px rgba(0,255,150,0.9); }
+}
+#autoIndicator.active { display: block; }
+
+</style>
+</head>
+<body>
+<div id="app">
+    <div id="scenery">
+        <div class="sun"></div>
+    </div>
+
+    <div id="topBar">
+        <div class="stat-pill"><span class="ico">💰</span><span class="coin" id="coinsLabel">0</span></div>
+        <div class="stat-pill"><span class="ico">🍀</span><span class="luck" id="luckLabel">x1.0</span></div>
+        <div class="stat-pill"><span class="ico">📖</span><span id="indexLabel">0/0</span></div>
+        <div class="stat-pill"><span class="ico">🎲</span><span id="rollsLabel">0</span></div>
+    </div>
+
+    <button class="sideBtn" id="indexBtn">📖<span class="label">Индекс</span></button>
+    <button class="sideBtn" id="shopBtn">🛒<span class="label">Магазин</span></button>
+    <button class="sideBtn" id="statsBtn">📊<span class="label">Статы</span></button>
+    <button class="sideBtn" id="biomeBtn">🗺<span class="label">Биомы</span></button>
+    <button class="sideBtn" id="autoBtn">🤖<span class="label">Авто</span></button>
+
+    <div id="autoIndicator">🤖 АВТО-РОЛЛ ВКЛЮЧЁН</div>
+
+    <div id="mainStage">
+        <div id="biomeBanner">
+            <span class="bIcon" id="bIcon">🌳</span>
+            <div>
+                <div class="bName" id="bName">Юрский лес</div>
+                <div class="bMul" id="bMul">x1.0 удача</div>
+            </div>
+        </div>
+
+        <div id="reelBox">
+            <div id="reelViewport">
+                <div id="reelTrack"></div>
+                <div id="pointer"></div>
+            </div>
+        </div>
+
+        <button id="rollBtn">🎲 КРУТИТЬ <span class="price">бесплатно</span></button>
+    </div>
+
+    <div id="globalFeed"></div>
+
+    <div id="screenFlash"></div>
+
+    <!-- Index panel -->
+    <div class="side-panel" id="indexPanel">
+        <div class="panel-header">
+            <div class="panel-title-big">📖 Индекс динозавров</div>
+            <button class="closeBtn" data-close="indexPanel">×</button>
+        </div>
+        <div id="indexStats" style="margin-bottom:14px; font-size:14px; opacity:0.9;"></div>
+        <div id="indexGrid"></div>
+    </div>
+
+    <!-- Shop panel -->
+    <div class="side-panel" id="shopPanel">
+        <div class="panel-header">
+            <div class="panel-title-big">🛒 Магазин</div>
+            <button class="closeBtn" data-close="shopPanel">×</button>
+        </div>
+        <div style="font-size:14px; opacity:0.9; margin-bottom:10px;">Лопаты дают <b>удачу</b> — бустят шанс редких!</div>
+        <div id="shopList"></div>
+    </div>
+
+    <!-- Stats panel -->
+    <div class="side-panel right" id="statsPanel">
+        <div class="panel-header">
+            <div class="panel-title-big">📊 Статистика</div>
+            <button class="closeBtn" data-close="statsPanel">×</button>
+        </div>
+        <div id="statsList"></div>
+    </div>
+
+    <!-- Biome panel -->
+    <div class="side-panel right" id="biomePanel">
+        <div class="panel-header">
+            <div class="panel-title-big">🗺 Биомы</div>
+            <button class="closeBtn" data-close="biomePanel">×</button>
+        </div>
+        <div style="font-size:14px; opacity:0.9; margin-bottom:10px;">Биомы дают бонусы и шанс уникальных дино!</div>
+        <div id="biomeList"></div>
+    </div>
+</div>
+
+<!-- Result modal -->
+<div class="modal" id="resultModal">
+    <div class="result-panel" id="resultPanel">
+        <div id="newTag" class="new-tag" style="display:none;">⭐ НОВИНКА!</div>
+        <div class="result-rarity" id="resRarity">COMMON</div>
+        <div class="result-dino" id="resDino">🦖</div>
+        <div class="result-name" id="resName">Velociraptor</div>
+        <div class="result-chance" id="resChance">1 из 2</div>
+        <div id="resMutations"></div>
+        <div class="result-actions">
+            <button class="bigBtn gold" id="rollAgainBtn">🎲 Ещё!</button>
+            <button class="bigBtn" id="sellBtn">💰 Продать</button>
+            <button class="bigBtn" id="keepBtn">📖 Оставить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ============================================================
+// DATA
+// ============================================================
+
+const DINOS = [
+    // Common
+    { id:'compy',     name:'Компи',         emoji:'🦎', rarity:'common',    weight:5000, sell:5,      biome:'forest' },
+    { id:'raptor',    name:'Велоцираптор',  emoji:'🦖', rarity:'common',    weight:4000, sell:8,      biome:'forest' },
+    { id:'stego',     name:'Стегозавр',     emoji:'🦕', rarity:'common',    weight:3500, sell:10,     biome:'forest' },
+    { id:'iguanodon', name:'Игуанодон',     emoji:'🐊', rarity:'common',    weight:3000, sell:12,     biome:'forest' },
+    // Uncommon
+    { id:'triceratop',name:'Трицератопс',   emoji:'🦏', rarity:'uncommon',  weight:1500, sell:50,     biome:'forest' },
+    { id:'brachio',   name:'Брахиозавр',    emoji:'🦒', rarity:'uncommon',  weight:1200, sell:75,     biome:'forest' },
+    { id:'parasaur',  name:'Паразауролоф',  emoji:'🦆', rarity:'uncommon',  weight:1000, sell:100,    biome:'forest' },
+    { id:'sandsaur',  name:'Пески-завр',    emoji:'🐫', rarity:'uncommon',  weight:1000, sell:120,    biome:'desert' },
+    // Rare
+    { id:'spino',     name:'Спинозавр',     emoji:'🐉', rarity:'rare',      weight:400,  sell:400,    biome:'any' },
+    { id:'ptero',     name:'Птеродактиль',  emoji:'🦅', rarity:'rare',      weight:350,  sell:500,    biome:'any' },
+    { id:'ankylo',    name:'Анкилозавр',    emoji:'🐢', rarity:'rare',      weight:300,  sell:650,    biome:'any' },
+    { id:'sabertooth',name:'Саблезубый',    emoji:'🐅', rarity:'rare',      weight:250,  sell:800,    biome:'ice' },
+    // Epic
+    { id:'trex',      name:'Тираннозавр',   emoji:'🦖', rarity:'epic',      weight:80,   sell:3500,   biome:'any' },
+    { id:'allosaurus',name:'Аллозавр',      emoji:'🦴', rarity:'epic',      weight:70,   sell:4500,   biome:'any' },
+    { id:'mammoth',   name:'Мамонт',        emoji:'🐘', rarity:'epic',      weight:60,   sell:6000,   biome:'ice' },
+    { id:'mosa',      name:'Мозазавр',      emoji:'🐋', rarity:'epic',      weight:60,   sell:7000,   biome:'any' },
+    // Legendary
+    { id:'megaRex',   name:'Мега Т-Рекс',   emoji:'👑', rarity:'legendary', weight:15,   sell:50000,  biome:'any' },
+    { id:'fireDragon',name:'Огненный Дракон',emoji:'🔥',rarity:'legendary',  weight:12,   sell:75000,  biome:'volcano' },
+    { id:'iceKing',   name:'Ледяной Король',emoji:'🧊', rarity:'legendary', weight:10,   sell:100000, biome:'ice' },
+    { id:'rainbowSaur',name:'Радужный',     emoji:'🌈', rarity:'legendary', weight:8,    sell:150000, biome:'any' },
+    // Mythic
+    { id:'skeleRex',  name:'Скелет-Рекс',   emoji:'💀', rarity:'mythic',    weight:3,    sell:1000000,biome:'any' },
+    { id:'shadowDino',name:'Теневой',       emoji:'🌑', rarity:'mythic',    weight:2.5,  sell:1500000,biome:'any' },
+    { id:'magmaRex',  name:'Магма-Рекс',    emoji:'🌋', rarity:'mythic',    weight:2,    sell:2500000,biome:'volcano' },
+    // Divine
+    { id:'cosmicRex', name:'Космо Рекс',    emoji:'🌌', rarity:'divine',    weight:0.5,  sell:25000000,biome:'cosmic' },
+    { id:'timeDino',  name:'Хроно-Дино',    emoji:'⌛', rarity:'divine',    weight:0.4,  sell:50000000,biome:'cosmic' },
+    { id:'voidLord',  name:'Властелин Бездны',emoji:'⚫',rarity:'divine',   weight:0.3,  sell:100000000,biome:'cosmic' },
+    // Secret
+    { id:'glitch',    name:'Глитч-Дино',    emoji:'👾', rarity:'secret',    weight:0.04, sell:1000000000,biome:'any' },
+    { id:'god',       name:'Бог-Динозавр',  emoji:'✨', rarity:'secret',    weight:0.02, sell:5000000000,biome:'cosmic' }
+];
+
+const RARITY_INFO = {
+    common:    { name:'COMMON',     color:'#ccc',    glow:'rgba(200,200,200,0.5)',  border:'#999' },
+    uncommon:  { name:'UNCOMMON',   color:'#6f6',    glow:'rgba(100,255,100,0.6)',  border:'#4a4' },
+    rare:      { name:'RARE',       color:'#6af',    glow:'rgba(100,170,255,0.7)',  border:'#48a' },
+    epic:      { name:'EPIC',       color:'#a6f',    glow:'rgba(170,100,255,0.7)',  border:'#84d' },
+    legendary: { name:'LEGENDARY',  color:'#ffd700', glow:'rgba(255,200,0,0.8)',    border:'#ffd700' },
+    mythic:    { name:'MYTHIC',     color:'#f6a',    glow:'rgba(255,100,200,0.9)',  border:'#f6a' },
+    divine:    { name:'DIVINE',     color:'#fa3',    glow:'rgba(255,150,0,1)',      border:'#fa3' },
+    secret:    { name:'??? SECRET ???', color:'#fff',glow:'rgba(255,255,255,1)',    border:'#fff' }
+};
+
+const SHOVELS = [
+    { id:'wood',    name:'Деревянная лопата', icon:'🪏', luck:1.0,  cost:0,         curr:'coins' },
+    { id:'iron',    name:'Железная лопата',   icon:'⛏',  luck:1.5,  cost:500,       curr:'coins' },
+    { id:'gold',    name:'Золотая лопата',    icon:'🥇', luck:2.5,  cost:5000,      curr:'coins' },
+    { id:'diamond', name:'Алмазная лопата',   icon:'💎', luck:4.0,  cost:50000,     curr:'coins' },
+    { id:'dragon',  name:'Драконья лопата',   icon:'🐲', luck:7.0,  cost:500000,    curr:'coins' },
+    { id:'cosmic',  name:'Космическая',       icon:'🚀', luck:12.0, cost:5000000,   curr:'coins' },
+    { id:'godly',   name:'Божественная',      icon:'✨', luck:20.0, cost:50000000,  curr:'coins' }
+];
+
+const POTIONS = [
+    { id:'lucky1', name:'Малое зелье удачи', icon:'🧪', luck:2.0, duration:60,  cost:1000,   curr:'coins' },
+    { id:'lucky2', name:'Зелье удачи',       icon:'🧴', luck:3.0, duration:120, cost:10000,  curr:'coins' },
+    { id:'lucky3', name:'Большое зелье',     icon:'🍶', luck:5.0, duration:180, cost:100000, curr:'coins' }
+];
+
+const BIOMES = [
+    { id:'forest',  name:'Юрский лес',  icon:'🌳', mul:1.0, unlock:0,       gradient:['#87ceeb','#4a8b3a','#2a5a1a'] },
+    { id:'desert',  name:'Пустыня',     icon:'🏜', mul:1.3, unlock:1000,    gradient:['#ffd88a','#e0a050','#aa7028'] },
+    { id:'ice',     name:'Ледник',      icon:'❄️', mul:1.7, unlock:50000,   gradient:['#aaddee','#88bbdd','#5588aa'] },
+    { id:'volcano', name:'Вулкан',      icon:'🌋', mul:2.3, unlock:1000000, gradient:['#aa3300','#660000','#330000'] },
+    { id:'cosmic',  name:'Космо-кратер',icon:'🌌', mul:3.5, unlock:50000000,gradient:['#1a0033','#330066','#000022'] }
+];
+
+const MUTATIONS = {
+    shiny:   { name:'✨ Shiny',    mul:3,  chance:1/30 },
+    golden:  { name:'🌟 Golden',   mul:10, chance:1/200 },
+    rainbow: { name:'🌈 Rainbow',  mul:50, chance:1/2000 }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+
+const defaultState = () => ({
+    coins: 100,
+    totalRolls: 0,
+    totalCoinsEarned: 0,
+    inventory: {}, // {dinoId: count}
+    discovered: {}, // {dinoId: true}
+    bestDinoId: null,
+    bestRarityIdx: 0,
+    shovel: 'wood',
+    ownedShovels: { wood: true },
+    activePotion: null, // {id, timeLeft}
+    activeBiome: 'forest',
+    unlockedBiomes: { forest: true },
+    autoRoll: false,
+    lastSave: Date.now(),
+    mutationCounts: { shiny:0, golden:0, rainbow:0 }
+});
+
+let state = defaultState();
+const SAVE_KEY = 'dinoRng_v1';
+
+function save() {
+    state.lastSave = Date.now();
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch(e){}
+}
+
+function load() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        const def = defaultState();
+        for (const k in saved) def[k] = saved[k];
+        state = def;
+    } catch(e) { console.error(e); }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function fmt(n) {
+    if (n === Infinity) return '∞';
+    if (isNaN(n)) return '0';
+    n = Math.floor(n);
+    if (n < 1000) return n.toString();
+    const units = ['','K','M','B','T','Qa','Qi','Sx','Sp','Oc'];
+    let i = 0;
+    while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+    return n.toFixed(2).replace(/\.?0+$/, '') + units[i];
+}
+
+function getDino(id) { return DINOS.find(d => d.id === id); }
+function getBiome() { return BIOMES.find(b => b.id === state.activeBiome); }
+function getShovel() { return SHOVELS.find(s => s.id === state.shovel); }
+function rarityIdx(r) { return Object.keys(RARITY_INFO).indexOf(r); }
+
+function totalLuck() {
+    let luck = getShovel().luck;
+    if (state.activePotion && state.activePotion.timeLeft > 0) {
+        const p = POTIONS.find(x => x.id === state.activePotion.id);
+        if (p) luck *= p.luck;
+    }
+    luck *= getBiome().mul;
+    return luck;
+}
+
+function effectiveChance(dino) {
+    // Common/uncommon get smaller boost; rare gets full luck boost
+    let w = dino.weight;
+    const idx = rarityIdx(dino.rarity);
+    if (idx >= 2) w *= totalLuck(); // rare+ gets luck multiplier
+    return w;
+}
+
+function chanceText(dino) {
+    // approximate 1 in X
+    let totalWeight = 0;
+    let dinoWeight = 0;
+    for (const d of DINOS) {
+        // filter by biome
+        if (d.biome !== 'any' && d.biome !== state.activeBiome && state.activeBiome !== 'cosmic') {
+            // outside biome still possible at reduced rate
+        }
+        const w = effectiveChance(d);
+        totalWeight += w;
+        if (d.id === dino.id) dinoWeight = w;
+    }
+    if (dinoWeight === 0) return '???';
+    return '1 из ' + fmt(Math.round(totalWeight / dinoWeight));
+}
+
+function rollDino() {
+    // weighted random
+    let total = 0;
+    const weights = [];
+    for (const d of DINOS) {
+        let w = effectiveChance(d);
+        // biome exclusives boost
+        if (d.biome === state.activeBiome) w *= 2;
+        else if (d.biome !== 'any') w *= 0.3;
+        weights.push(w);
+        total += w;
+    }
+    let r = Math.random() * total;
+    for (let i = 0; i < DINOS.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return DINOS[i];
+    }
+    return DINOS[0];
+}
+
+function rollMutations() {
+    const out = {};
+    const luckBoost = Math.sqrt(totalLuck());
+    for (const m in MUTATIONS) {
+        if (Math.random() < MUTATIONS[m].chance * luckBoost) {
+            out[m] = true;
+        }
+    }
+    return out;
+}
+
+// ============================================================
+// REEL ANIMATION
+// ============================================================
+
+const reelTrack = document.getElementById('reelTrack');
+let rolling = false;
+
+function buildReel(finalDino) {
+    reelTrack.innerHTML = '';
+    // build a long reel of random dinos ending with finalDino
+    const cardCount = 30;
+    const cards = [];
+    for (let i = 0; i < cardCount - 1; i++) {
+        // bias towards lower rarities for the spinning visuals, occasional rare flash
+        let pick;
+        if (Math.random() < 0.85) {
+            const lows = DINOS.filter(d => rarityIdx(d.rarity) <= 3);
+            pick = lows[Math.floor(Math.random() * lows.length)];
+        } else {
+            pick = DINOS[Math.floor(Math.random() * DINOS.length)];
+        }
+        cards.push(pick);
+    }
+    cards.push(finalDino);
+
+    for (const d of cards) {
+        const div = document.createElement('div');
+        div.className = 'reel-card r-' + d.rarity;
+        div.innerHTML = `<div class="dino">${d.emoji}</div><div class="name">${d.name}</div>`;
+        reelTrack.appendChild(div);
+    }
+    return cards;
+}
+
+function doRollAnimation(finalDino, mutations, callback) {
+    rolling = true;
+    document.getElementById('rollBtn').disabled = true;
+
+    const cards = buildReel(finalDino);
+    const cardEls = reelTrack.children;
+
+    // measure card width
+    const viewport = document.getElementById('reelViewport');
+    const vw = viewport.offsetWidth;
+    const cardWidth = cardEls[0].offsetWidth + 12; // include margin
+
+    // final card position so it lands in center
+    const finalIdx = cards.length - 1;
+    const finalX = finalIdx * cardWidth + cardWidth/2 - vw/2;
+
+    reelTrack.style.transition = 'none';
+    reelTrack.style.transform = 'translateX(0)';
+
+    // Spin duration depends on rarity (rarer = longer suspense)
+    const idx = rarityIdx(finalDino.rarity);
+    const baseDuration = 2.5;
+    const extra = idx * 0.5; // up to 3.5 extra seconds for secret
+    const duration = baseDuration + extra;
+
+    // play tick sound rapidly
+    playReelTickLoop(duration);
+
+    setTimeout(() => {
+        reelTrack.style.transition = `transform ${duration}s cubic-bezier(0.15, 0.45, 0.05, 1)`;
+        reelTrack.style.transform = `translateX(-${finalX}px)`;
+    }, 30);
+
+    setTimeout(() => {
+        rolling = false;
+        if (idx >= 4) flashScreen();
+        if (idx >= 5) burstParticles(finalDino.emoji);
+        showResult(finalDino, mutations);
+        playRaritySound(finalDino.rarity);
+        callback && callback();
+    }, duration * 1000 + 100);
+}
+
+function flashScreen() {
+    const el = document.getElementById('screenFlash');
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+}
+
+function burstParticles(emoji) {
+    for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.textContent = ['✨','🌟','💫','⭐',emoji][Math.floor(Math.random()*5)];
+        p.style.left = (Math.random() * 100) + '%';
+        p.style.top = (40 + Math.random() * 20) + '%';
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 100 + Math.random() * 250;
+        p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+        p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+        p.style.animationDelay = (Math.random() * 0.3) + 's';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 2500);
+    }
+}
+
+// ============================================================
+// AUDIO (Web Audio synth — no files needed)
+// ============================================================
+
+let audioCtx = null;
+function audio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+}
+
+function playTone(freq, dur, type='sine', vol=0.1) {
+    const ctx = audio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+}
+
+let tickStop = null;
+function playReelTickLoop(durSec) {
+    let elapsed = 0;
+    let interval = 40;
+    if (tickStop) clearTimeout(tickStop);
+    const tick = () => {
+        if (elapsed >= durSec * 1000) return;
+        playTone(800 - (elapsed / (durSec * 1000)) * 400, 0.05, 'square', 0.04);
+        elapsed += interval;
+        // ease out: ticks slow down
+        interval = 40 + (elapsed / (durSec * 1000)) * 250;
+        tickStop = setTimeout(tick, interval);
+    };
+    tick();
+}
+
+function playRaritySound(rarity) {
+    const idx = rarityIdx(rarity);
+    if (idx <= 1) {
+        playTone(440, 0.2, 'sine', 0.1);
+    } else if (idx === 2) {
+        playTone(523, 0.2, 'triangle', 0.12);
+        setTimeout(() => playTone(659, 0.2, 'triangle', 0.12), 100);
+    } else if (idx === 3) {
+        [523, 659, 784].forEach((f, i) => setTimeout(() => playTone(f, 0.25, 'triangle', 0.13), i * 100));
+    } else if (idx === 4) {
+        [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sawtooth', 0.13), i * 90));
+    } else if (idx === 5) {
+        // dramatic descending then ascending
+        [200, 300, 500, 700, 900, 1200].forEach((f, i) => setTimeout(() => playTone(f, 0.4, 'sawtooth', 0.15), i * 80));
+    } else if (idx === 6) {
+        // divine — long fanfare
+        [392, 523, 659, 784, 1047, 1319, 1568].forEach((f, i) => setTimeout(() => playTone(f, 0.5, 'square', 0.15), i * 100));
+    } else {
+        // secret — chaotic + epic
+        [262, 330, 392, 523, 659, 784, 1047, 1319, 1568, 1976].forEach((f, i) => setTimeout(() => {
+            playTone(f, 0.5, 'sawtooth', 0.15);
+            playTone(f * 1.5, 0.5, 'sine', 0.1);
+        }, i * 110));
+    }
+}
+
+// ============================================================
+// ROLL LOGIC
+// ============================================================
+
+function doRoll() {
+    if (rolling) return;
+    const dino = rollDino();
+    const mutations = rollMutations();
+    state.totalRolls++;
+
+    // record
+    if (!state.discovered[dino.id]) {
+        state.discovered[dino.id] = true;
+    }
+    if (!state.inventory[dino.id]) state.inventory[dino.id] = [];
+    state.inventory[dino.id].push({ mutations });
+
+    const idx = rarityIdx(dino.rarity);
+    if (idx > state.bestRarityIdx) {
+        state.bestRarityIdx = idx;
+        state.bestDinoId = dino.id;
+    }
+
+    for (const m in mutations) state.mutationCounts[m]++;
+
+    // global feed for rare drops
+    if (idx >= 3 || Object.keys(mutations).length > 0) {
+        addFeed(dino, mutations);
+    }
+
+    doRollAnimation(dino, mutations, () => {
+        renderHUD();
+        save();
+    });
+}
+
+function addFeed(dino, mutations) {
+    const fakeNames = ['Игрок_42','XxDragonxX','DinoMaster','RobloxPro','KingT','Slayer42','Pikachu99','MineFan','LuckyCat','Speedy'];
+    const isYou = Math.random() < 0.6;
+    const name = isYou ? '⭐ ТЫ' : fakeNames[Math.floor(Math.random()*fakeNames.length)];
+    const mutText = Object.keys(mutations).map(m => MUTATIONS[m].name).join(' ');
+    const info = RARITY_INFO[dino.rarity];
+
+    const line = document.createElement('div');
+    line.className = 'feed-line';
+    line.style.setProperty('--feed-color', info.color);
+    line.innerHTML = `${name} выбил <b style="color:${info.color}">${mutText} ${dino.emoji} ${dino.name}</b> <span style="opacity:0.7;">(${chanceText(dino)})</span>`;
+    document.getElementById('globalFeed').appendChild(line);
+    setTimeout(() => line.remove(), 6000);
+
+    // limit lines
+    const lines = document.querySelectorAll('#globalFeed .feed-line');
+    if (lines.length > 4) lines[0].remove();
+}
+
+// fake feed every few seconds
+setInterval(() => {
+    if (rolling) return;
+    // random fake roll
+    const r = Math.random();
+    let dino;
+    if (r < 0.7) {
+        const rares = DINOS.filter(d => rarityIdx(d.rarity) === 2 || rarityIdx(d.rarity) === 3);
+        dino = rares[Math.floor(Math.random()*rares.length)];
+    } else if (r < 0.92) {
+        const epics = DINOS.filter(d => rarityIdx(d.rarity) === 4);
+        dino = epics[Math.floor(Math.random()*epics.length)];
+    } else {
+        const myths = DINOS.filter(d => rarityIdx(d.rarity) >= 5);
+        dino = myths[Math.floor(Math.random()*myths.length)];
+    }
+    if (dino) addFeed(dino, {});
+}, 7000);
+
+// ============================================================
+// RESULT MODAL
+// ============================================================
+
+function showResult(dino, mutations) {
+    const info = RARITY_INFO[dino.rarity];
+    document.getElementById('resRarity').textContent = info.name;
+    document.getElementById('resRarity').style.color = info.color;
+    document.getElementById('resDino').textContent = dino.emoji;
+    document.getElementById('resName').textContent = dino.name;
+    document.getElementById('resChance').textContent = chanceText(dino);
+
+    const mut = document.getElementById('resMutations');
+    mut.innerHTML = '';
+    for (const m in mutations) {
+        const div = document.createElement('div');
+        div.className = 'result-mutation';
+        div.textContent = MUTATIONS[m].name + ' x' + MUTATIONS[m].mul;
+        mut.appendChild(div);
+    }
+
+    const panel = document.getElementById('resultPanel');
+    panel.style.setProperty('--rarity-border', info.border);
+    panel.style.setProperty('--rarity-glow', info.glow);
+    panel.style.setProperty('--rarity-color', info.color);
+
+    // new tag
+    const newTag = document.getElementById('newTag');
+    const inv = state.inventory[dino.id] || [];
+    newTag.style.display = inv.length === 1 ? 'block' : 'none';
+
+    // store current result for sell/keep
+    panel.dataset.dinoId = dino.id;
+    panel.dataset.mutations = JSON.stringify(mutations);
+
+    document.getElementById('resultModal').classList.add('active');
+}
+
+function closeResult() {
+    document.getElementById('resultModal').classList.remove('active');
+    if (state.autoRoll && !rolling) {
+        setTimeout(() => doRoll(), 400);
+    }
+}
+
+document.getElementById('rollAgainBtn').addEventListener('click', () => {
+    closeResult();
+    setTimeout(() => doRoll(), 100);
+});
+
+document.getElementById('sellBtn').addEventListener('click', () => {
+    const panel = document.getElementById('resultPanel');
+    const dinoId = panel.dataset.dinoId;
+    const muts = JSON.parse(panel.dataset.mutations || '{}');
+    const d = getDino(dinoId);
+    let val = d.sell;
+    for (const m in muts) val *= MUTATIONS[m].mul;
+    state.coins += val;
+    state.totalCoinsEarned += val;
+    // remove one from inventory
+    if (state.inventory[dinoId] && state.inventory[dinoId].length > 0) state.inventory[dinoId].pop();
+    spawnFloat('+' + fmt(val) + '💰');
+    closeResult();
+    renderHUD();
+    save();
+});
+
+document.getElementById('keepBtn').addEventListener('click', () => {
+    closeResult();
+});
+
+function spawnFloat(text, color) {
+    const f = document.createElement('div');
+    f.className = 'float-text';
+    f.textContent = text;
+    f.style.left = '50%';
+    f.style.top = '55%';
+    if (color) f.style.color = color;
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1600);
+}
+
+// ============================================================
+// RENDER PANELS
+// ============================================================
+
+function renderHUD() {
+    document.getElementById('coinsLabel').textContent = fmt(state.coins);
+    document.getElementById('luckLabel').textContent = 'x' + totalLuck().toFixed(1);
+    const discovered = Object.keys(state.discovered).length;
+    document.getElementById('indexLabel').textContent = discovered + '/' + DINOS.length;
+    document.getElementById('rollsLabel').textContent = fmt(state.totalRolls);
+
+    const b = getBiome();
+    document.getElementById('bIcon').textContent = b.icon;
+    document.getElementById('bName').textContent = b.name;
+    document.getElementById('bMul').textContent = 'x' + b.mul + ' удача';
+
+    document.getElementById('autoIndicator').classList.toggle('active', state.autoRoll);
+}
+
+function renderIndex() {
+    const grid = document.getElementById('indexGrid');
+    grid.innerHTML = '';
+    const stats = document.getElementById('indexStats');
+    const discovered = Object.keys(state.discovered).length;
+    stats.innerHTML = `Открыто: <b>${discovered}/${DINOS.length}</b>`;
+
+    for (const d of DINOS) {
+        const found = state.discovered[d.id];
+        const count = (state.inventory[d.id] || []).length;
+        const div = document.createElement('div');
+        div.className = 'index-cell r-' + d.rarity + (found ? ' discovered' : ' locked');
+        div.innerHTML = `
+            <div class="ico">${found ? d.emoji : '❓'}</div>
+            <div class="nm">${found ? d.name : '???'}</div>
+            <div class="ch">${found ? chanceText(d) : '?'}</div>
+            ${count > 0 ? `<div class="own-count">x${count}</div>` : ''}
+        `;
+        grid.appendChild(div);
+    }
+}
+
+function renderShop() {
+    const host = document.getElementById('shopList');
+    host.innerHTML = '<div style="font-weight:800; margin-bottom:8px; color:#ffd700;">⛏ ЛОПАТЫ</div>';
+    for (const s of SHOVELS) {
+        const owned = state.ownedShovels[s.id];
+        const equipped = state.shovel === s.id;
+        const canAfford = state.coins >= s.cost;
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (equipped ? ' equipped' : '');
+        div.innerHTML = `
+            <div class="row">
+                <span class="icn">${s.icon}</span>
+                <div class="ttl">${s.name}</div>
+            </div>
+            <div class="dsc">🍀 Удача: <b>x${s.luck}</b></div>
+            <button class="bigBtn" data-shop="shovel" data-id="${s.id}" ${(!owned && !canAfford) ? 'disabled' : ''}>
+                ${equipped ? '✓ Экипировано' : owned ? 'Экипировать' : `Купить ${fmt(s.cost)}💰`}
+            </button>
+        `;
+        host.appendChild(div);
+    }
+
+    host.insertAdjacentHTML('beforeend', '<div style="font-weight:800; margin:14px 0 8px; color:#aaffaa;">🧪 ЗЕЛЬЯ</div>');
+    for (const p of POTIONS) {
+        const canAfford = state.coins >= p.cost;
+        const active = state.activePotion && state.activePotion.id === p.id;
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        div.innerHTML = `
+            <div class="row">
+                <span class="icn">${p.icon}</span>
+                <div class="ttl">${p.name}</div>
+            </div>
+            <div class="dsc">🍀 x${p.luck} на ${p.duration}с ${active ? `(осталось ${Math.ceil(state.activePotion.timeLeft)}с)` : ''}</div>
+            <button class="bigBtn" data-shop="potion" data-id="${p.id}" ${!canAfford ? 'disabled' : ''}>
+                ${`Использовать ${fmt(p.cost)}💰`}
+            </button>
+        `;
+        host.appendChild(div);
+    }
+}
+
+function renderStats() {
+    const host = document.getElementById('statsList');
+    const totalOwned = Object.values(state.inventory).reduce((s, arr) => s + arr.length, 0);
+    let bestText = '—';
+    if (state.bestDinoId) {
+        const d = getDino(state.bestDinoId);
+        bestText = `${d.emoji} ${d.name}`;
+    }
+    host.innerHTML = `
+        <div class="shop-item">
+            <div class="dsc"><b>🎲 Всего роллов:</b> ${fmt(state.totalRolls)}</div>
+            <div class="dsc"><b>💰 Всего заработано:</b> ${fmt(state.totalCoinsEarned)}</div>
+            <div class="dsc"><b>📖 Открыто:</b> ${Object.keys(state.discovered).length}/${DINOS.length}</div>
+            <div class="dsc"><b>📦 Динозавров в инвентаре:</b> ${totalOwned}</div>
+            <div class="dsc"><b>👑 Лучший:</b> ${bestText}</div>
+            <div class="dsc"><b>✨ Шайни найдено:</b> ${state.mutationCounts.shiny}</div>
+            <div class="dsc"><b>🌟 Голден найдено:</b> ${state.mutationCounts.golden}</div>
+            <div class="dsc"><b>🌈 Радужных найдено:</b> ${state.mutationCounts.rainbow}</div>
+        </div>
+        <button class="bigBtn red" style="width:100%; margin-top: 10px;" id="resetBtn">♻ Полный сброс</button>
+    `;
+}
+
+function renderBiomes() {
+    const host = document.getElementById('biomeList');
+    host.innerHTML = '';
+    for (const b of BIOMES) {
+        const unlocked = state.unlockedBiomes[b.id];
+        const active = state.activeBiome === b.id;
+        const canAfford = state.coins >= b.unlock;
+        const div = document.createElement('div');
+        div.className = 'biome-card' + (active ? ' active' : '') + (!unlocked ? ' locked' : '');
+        div.innerHTML = `
+            <div class="head">
+                <span class="ic">${b.icon}</span>
+                <div class="nm">${b.name}</div>
+            </div>
+            <div class="info">x${b.mul} удача • эксклюзивные дино</div>
+            <button class="bigBtn" data-biome="${b.id}" style="margin-top:6px; width:100%;" ${!unlocked && !canAfford ? 'disabled' : ''}>
+                ${active ? '✓ Активен' : unlocked ? 'Перейти' : `Открыть ${fmt(b.unlock)}💰`}
+            </button>
+        `;
+        host.appendChild(div);
+    }
+}
+
+// ============================================================
+// EVENT WIRING
+// ============================================================
+
+document.getElementById('rollBtn').addEventListener('click', () => {
+    if (!audioCtx) audio(); // init on first click
+    doRoll();
+});
+
+document.getElementById('indexBtn').addEventListener('click', () => { renderIndex(); openPanel('indexPanel'); });
+document.getElementById('shopBtn').addEventListener('click', () => { renderShop(); openPanel('shopPanel'); });
+document.getElementById('statsBtn').addEventListener('click', () => { renderStats(); openPanel('statsPanel'); });
+document.getElementById('biomeBtn').addEventListener('click', () => { renderBiomes(); openPanel('biomePanel'); });
+document.getElementById('autoBtn').addEventListener('click', () => {
+    state.autoRoll = !state.autoRoll;
+    renderHUD();
+    if (state.autoRoll && !rolling) doRoll();
+});
+
+function openPanel(id) {
+    document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+document.querySelectorAll('[data-close]').forEach(b => {
+    b.addEventListener('click', () => {
+        document.getElementById(b.dataset.close).classList.remove('active');
+    });
+});
+
+// shop click
+document.getElementById('shopList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-shop]');
+    if (!btn) return;
+    const type = btn.dataset.shop;
+    const id = btn.dataset.id;
+    if (type === 'shovel') {
+        const s = SHOVELS.find(x => x.id === id);
+        if (state.ownedShovels[id]) {
+            state.shovel = id;
+        } else {
+            if (state.coins < s.cost) return;
+            state.coins -= s.cost;
+            state.ownedShovels[id] = true;
+            state.shovel = id;
+        }
+    } else if (type === 'potion') {
+        const p = POTIONS.find(x => x.id === id);
+        if (state.coins < p.cost) return;
+        state.coins -= p.cost;
+        state.activePotion = { id: p.id, timeLeft: p.duration };
+    }
+    renderHUD();
+    renderShop();
+    save();
+});
+
+document.getElementById('biomeList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-biome]');
+    if (!btn) return;
+    const id = btn.dataset.biome;
+    const b = BIOMES.find(x => x.id === id);
+    if (!state.unlockedBiomes[id]) {
+        if (state.coins < b.unlock) return;
+        state.coins -= b.unlock;
+        state.unlockedBiomes[id] = true;
+    }
+    state.activeBiome = id;
+    // update background
+    const app = document.getElementById('app');
+    app.style.background = `linear-gradient(180deg, ${b.gradient[0]} 0%, ${b.gradient[1]} 60%, ${b.gradient[2]} 100%)`;
+    renderHUD();
+    renderBiomes();
+    save();
+});
+
+document.getElementById('statsList').addEventListener('click', e => {
+    if (e.target.id === 'resetBtn') {
+        if (confirm('Сбросить ВЕСЬ прогресс?')) {
+            localStorage.removeItem(SAVE_KEY);
+            state = defaultState();
+            renderAll();
+        }
+    }
+});
+
+// ============================================================
+// SCENERY: clouds
+// ============================================================
+
+function initClouds() {
+    const sc = document.getElementById('scenery');
+    for (let i = 0; i < 4; i++) {
+        const c = document.createElement('div');
+        c.className = 'cloud';
+        c.style.width = (80 + Math.random() * 120) + 'px';
+        c.style.height = (30 + Math.random() * 20) + 'px';
+        c.style.top = (5 + Math.random() * 30) + '%';
+        c.style.animationDuration = (40 + Math.random() * 60) + 's';
+        c.style.animationDelay = (-Math.random() * 60) + 's';
+        sc.appendChild(c);
+    }
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+
+let lastT = performance.now();
+function tick(t) {
+    const dt = (t - lastT) / 1000;
+    lastT = t;
+    if (state.activePotion) {
+        state.activePotion.timeLeft -= dt;
+        if (state.activePotion.timeLeft <= 0) {
+            state.activePotion = null;
+            renderHUD();
+        }
+    }
+    requestAnimationFrame(tick);
+}
+
+function renderAll() {
+    renderHUD();
+    renderIndex();
+    renderShop();
+    renderStats();
+    renderBiomes();
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+
+load();
+initClouds();
+renderAll();
+
+// apply current biome bg
+const b = getBiome();
+document.getElementById('app').style.background =
+    `linear-gradient(180deg, ${b.gradient[0]} 0%, ${b.gradient[1]} 60%, ${b.gradient[2]} 100%)`;
+
+requestAnimationFrame(tick);
+setInterval(save, 10000);
+window.addEventListener('beforeunload', save);
+
+})();
+</script>
+</body>
+</html>

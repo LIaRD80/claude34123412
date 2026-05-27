@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>⛏ Симулятор копания</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+html, body {
+    width:100%; height:100%;
+    overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:#fff;
+    background:#000;
+    touch-action:manipulation;
+}
+#app {
+    width:100vw; height:100vh;
+    position:relative;
+    display:grid;
+    grid-template-columns: 280px 1fr 280px;
+    grid-template-rows: 60px 1fr 70px;
+    gap:8px;
+    padding:8px;
+    background: radial-gradient(ellipse at top, #1a1a3e 0%, #050510 70%);
+}
+@media (max-width: 900px) {
+    #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50px 1fr auto auto;
+        padding:4px;
+        gap:4px;
+    }
+    #leftPanel, #rightPanel { display:none; }
+    #leftPanel.mobileShow, #rightPanel.mobileShow {
+        display:block;
+        position:fixed;
+        top:0; bottom:0;
+        z-index:100;
+        width:85%;
+        max-width:340px;
+        max-height:100vh;
+        overflow-y:auto;
+    }
+    #leftPanel.mobileShow { left:0; }
+    #rightPanel.mobileShow { right:0; }
+}
+
+#topBar {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(20,20,60,0.8), rgba(60,20,80,0.8));
+    border:1px solid rgba(100,150,255,0.3);
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    padding:0 16px;
+    gap:14px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,100,200,0.2);
+    overflow-x:auto;
+}
+.stat {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-weight:600;
+    white-space:nowrap;
+    font-size:14px;
+}
+.stat .icon { font-size:18px; }
+.stat .val { color:#ffd700; }
+.coin-color { color:#ffd700; }
+.gem-color { color:#7df9ff; }
+.depth-color { color:#a0ff8a; }
+.mobile-btn {
+    display:none;
+    background:rgba(100,150,255,0.2);
+    border:1px solid rgba(100,150,255,0.4);
+    color:#fff;
+    border-radius:8px;
+    padding:6px 10px;
+    cursor:pointer;
+    font-size:14px;
+}
+@media (max-width: 900px) {
+    .mobile-btn { display:inline-block; }
+    .stat { font-size:12px; }
+}
+
+#leftPanel, #rightPanel {
+    background: linear-gradient(160deg, rgba(15,15,40,0.85), rgba(30,15,50,0.85));
+    border:1px solid rgba(100,150,255,0.3);
+    border-radius:12px;
+    padding:12px;
+    overflow-y:auto;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,50,100,0.3);
+}
+.panel-title {
+    font-size:14px;
+    font-weight:700;
+    text-transform:uppercase;
+    color:#7df9ff;
+    margin-bottom:10px;
+    letter-spacing:1px;
+    border-bottom:1px solid rgba(100,150,255,0.3);
+    padding-bottom:6px;
+}
+
+#mainArea {
+    position:relative;
+    border-radius:12px;
+    overflow:hidden;
+    background: linear-gradient(180deg, var(--bg-top, #2a2a5a) 0%, var(--bg-bot, #0a0a2e) 100%);
+    border:1px solid rgba(100,150,255,0.3);
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.5);
+    cursor:pointer;
+}
+#blockCanvas {
+    position:absolute;
+    top:0; left:0;
+    width:100%;
+    height:100%;
+}
+#mainArea.shaking {
+    animation: shake 0.12s;
+}
+@keyframes shake {
+    0%, 100% { transform:translate(0,0); }
+    25% { transform:translate(-3px, -2px); }
+    50% { transform:translate(3px, 2px); }
+    75% { transform:translate(-2px, 3px); }
+}
+
+#blockInfo {
+    position:absolute;
+    top:12px; left:12px;
+    background:rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:10px;
+    padding:8px 14px;
+    font-size:14px;
+    pointer-events:none;
+    backdrop-filter:blur(5px);
+}
+#blockInfo .blockName { font-weight:700; font-size:16px; margin-bottom:4px; }
+#hpBar {
+    width:200px;
+    height:8px;
+    background:rgba(0,0,0,0.5);
+    border-radius:4px;
+    overflow:hidden;
+    margin-top:4px;
+}
+#hpFill {
+    height:100%;
+    background:linear-gradient(90deg, #ff5555, #ff9900, #44ff44);
+    transition: width 0.1s;
+    border-radius:4px;
+}
+
+#eventBanner {
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    background:linear-gradient(90deg, #ffd700, #ff6b00, #ff00ff);
+    color:#000;
+    padding:12px 30px;
+    border-radius:30px;
+    font-weight:700;
+    font-size:20px;
+    box-shadow: 0 0 40px rgba(255, 200, 0, 0.8);
+    z-index:5;
+    pointer-events:none;
+    animation: bannerPulse 0.5s;
+    text-align:center;
+}
+#eventBanner.hidden { display:none; }
+@keyframes bannerPulse {
+    0% { transform:translate(-50%, -50%) scale(0.5); opacity:0; }
+    50% { transform:translate(-50%, -50%) scale(1.1); }
+    100% { transform:translate(-50%, -50%) scale(1); opacity:1; }
+}
+
+#activeEvents {
+    position:absolute;
+    top:12px; right:12px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    pointer-events:none;
+}
+.eventChip {
+    background:linear-gradient(90deg, #ff6b00, #ffd700);
+    color:#000;
+    padding:6px 12px;
+    border-radius:20px;
+    font-weight:700;
+    font-size:13px;
+    box-shadow: 0 2px 10px rgba(255,150,0,0.5);
+}
+
+#bottomBar {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(20,20,60,0.8), rgba(60,20,80,0.8));
+    border:1px solid rgba(100,150,255,0.3);
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    padding:0 16px;
+    backdrop-filter: blur(8px);
+}
+.bigBtn {
+    flex:1;
+    max-width:200px;
+    height:50px;
+    background: linear-gradient(90deg, #00aaff, #ff00aa);
+    border:none;
+    border-radius:25px;
+    color:#fff;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(0,150,255,0.4);
+}
+.bigBtn:hover { transform:scale(1.03); }
+.bigBtn:active { transform:scale(0.97); }
+.bigBtn.alt { background:linear-gradient(90deg, #ff6b00, #ffd700); }
+.bigBtn.alt2 { background:linear-gradient(90deg, #aa00ff, #ff00aa); }
+.bigBtn:disabled { opacity:0.4; cursor:not-allowed; }
+
+.shopItem {
+    background:rgba(0,0,0,0.4);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    transition: border-color 0.2s, background 0.2s;
+}
+.shopItem.owned {
+    border-color:rgba(0,255,100,0.5);
+    background:rgba(0,80,30,0.3);
+}
+.shopItem.equipped {
+    border-color:#ffd700;
+    background:rgba(80,60,0,0.4);
+    box-shadow: 0 0 15px rgba(255,200,0,0.3);
+}
+.shopItem.locked { opacity:0.5; }
+.shopItem .name {
+    font-weight:700;
+    font-size:14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:4px;
+}
+.shopItem .stats {
+    font-size:12px;
+    opacity:0.85;
+    margin-bottom:6px;
+}
+.shopItem button {
+    width:100%;
+    background:linear-gradient(90deg, #00aaff, #0066cc);
+    border:none;
+    color:#fff;
+    padding:6px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+}
+.shopItem button:disabled { opacity:0.4; cursor:not-allowed; background:#444; }
+.shopItem.equipped button { background:#ffd700; color:#000; }
+.shopItem.equipped button.equipBtn { background:#888; }
+
+.tier-tag {
+    display:inline-block;
+    font-size:10px;
+    padding:2px 6px;
+    border-radius:8px;
+    background:rgba(255,255,255,0.1);
+    margin-left:4px;
+}
+
+#prestigeArea {
+    margin-top:14px;
+    border-top:1px solid rgba(255,200,0,0.4);
+    padding-top:10px;
+}
+
+#log {
+    position:absolute;
+    bottom:12px; left:12px;
+    width:280px;
+    max-height:120px;
+    overflow:hidden;
+    pointer-events:none;
+    font-size:13px;
+}
+.logLine {
+    background:rgba(0,0,0,0.5);
+    padding:4px 10px;
+    margin-bottom:4px;
+    border-radius:6px;
+    border-left:3px solid #00aaff;
+    animation: logFade 5s forwards;
+    backdrop-filter:blur(4px);
+}
+@keyframes logFade {
+    0% { opacity:0; transform:translateX(-20px); }
+    10%,80% { opacity:1; transform:translateX(0); }
+    100% { opacity:0; transform:translateX(-20px); }
+}
+
+.floatNum {
+    position:absolute;
+    font-weight:700;
+    font-size:18px;
+    pointer-events:none;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,0.8);
+    animation: floatUp 1.2s forwards;
+    z-index:6;
+}
+@keyframes floatUp {
+    0% { opacity:0; transform:translate(-50%, 0) scale(0.5); }
+    20% { opacity:1; transform:translate(-50%, -10px) scale(1.2); }
+    100% { opacity:0; transform:translate(-50%, -80px) scale(1); }
+}
+
+#autoMinerInfo {
+    background:rgba(0,30,60,0.6);
+    border:1px solid rgba(0,200,255,0.4);
+    border-radius:8px;
+    padding:8px;
+    margin-bottom:10px;
+    font-size:12px;
+}
+
+input[type="range"] {
+    width:100%;
+}
+
+.modal {
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,20,0.85);
+    z-index:200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    backdrop-filter:blur(8px);
+}
+.modal.active { display:flex; }
+.modal-panel {
+    background:linear-gradient(135deg, #1a1a4a, #3a1a4a);
+    border:2px solid #ffd700;
+    border-radius:20px;
+    padding:30px;
+    max-width:90vw;
+    max-height:90vh;
+    overflow-y:auto;
+    box-shadow: 0 0 40px rgba(255,200,0,0.4);
+    text-align:center;
+}
+.modal h2 {
+    background: linear-gradient(90deg, #ffd700, #ff00ff);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+    margin-bottom:14px;
+}
+
+.crit {
+    color: #ff5555 !important;
+    text-shadow: 0 0 10px #ff0000 !important;
+    font-size:24px !important;
+}
+.gem-float {
+    color:#7df9ff !important;
+    text-shadow: 0 0 10px #00aaff !important;
+}
+.golden-float {
+    color:#ffd700 !important;
+    font-size:28px !important;
+    text-shadow: 0 0 15px #ff8800 !important;
+}
+
+.stats-grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:6px;
+    font-size:12px;
+}
+.stats-grid div {
+    background:rgba(0,0,0,0.3);
+    padding:6px;
+    border-radius:6px;
+}
+
+#log {
+    pointer-events:none;
+}
+</style>
+</head>
+<body>
+<div id="app">
+    <div id="topBar">
+        <button class="mobile-btn" id="leftToggle">⛏</button>
+        <div class="stat"><span class="icon">💰</span><span class="val coin-color" id="coinsLabel">0</span></div>
+        <div class="stat"><span class="icon">💎</span><span class="val gem-color" id="gemsLabel">0</span></div>
+        <div class="stat"><span class="icon">⛏</span><span class="val" id="pickLabel">Деревянная</span></div>
+        <div class="stat"><span class="icon">🌍</span><span class="val depth-color" id="depthLabel">0м</span></div>
+        <div class="stat"><span class="icon">📊</span><span class="val" id="levelLabel">Ур.1</span></div>
+        <div class="stat"><span class="icon">⚡</span><span class="val" id="combo">x1.0</span></div>
+        <button class="mobile-btn" id="rightToggle" style="margin-left:auto">📋</button>
+    </div>
+
+    <div id="leftPanel">
+        <div class="panel-title">⛏ Кирки</div>
+        <div id="pickaxeList"></div>
+
+        <div class="panel-title" style="margin-top:14px;">🤖 Автокопатель</div>
+        <div id="autoMinerInfo">
+            <div>Уровень: <span id="autoLevel">0</span></div>
+            <div>Урон/сек: <span id="autoDps">0</span></div>
+        </div>
+        <div id="autoMinerShop"></div>
+
+        <div class="panel-title" style="margin-top:14px;">⚙️ Улучшения</div>
+        <div id="upgradeList"></div>
+    </div>
+
+    <div id="mainArea">
+        <canvas id="blockCanvas"></canvas>
+        <div id="blockInfo">
+            <div class="blockName" id="curBlockName">Земля</div>
+            <div style="font-size:12px; opacity:0.8;">Прочность: <span id="hpText">10/10</span></div>
+            <div id="hpBar"><div id="hpFill" style="width:100%"></div></div>
+        </div>
+        <div id="activeEvents"></div>
+        <div id="eventBanner" class="hidden"></div>
+        <div id="log"></div>
+    </div>
+
+    <div id="rightPanel">
+        <div class="panel-title">📜 Статистика</div>
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="panel-title" style="margin-top:14px;">🎯 Достижения</div>
+        <div id="achievementList" style="font-size:12px;"></div>
+
+        <div id="prestigeArea">
+            <div class="panel-title" style="color:#ffd700;">⭐ Престиж</div>
+            <div style="font-size:12px; margin-bottom:8px;">
+                Сбросьте прогресс и получите <b id="prestigeGain">0</b> 💎 за множитель <b id="prestigeMul">+0%</b> ко всему!
+            </div>
+            <button class="bigBtn alt2" style="height:38px; width:100%; font-size:14px;" id="prestigeBtn">Престиж</button>
+        </div>
+    </div>
+
+    <div id="bottomBar">
+        <button class="bigBtn" id="digBtn">⛏ КОПАТЬ</button>
+        <button class="bigBtn alt" id="saveBtn" style="max-width:120px; font-size:14px; height:40px;">💾 Сохранить</button>
+        <button class="bigBtn alt2" id="resetBtn" style="max-width:120px; font-size:14px; height:40px;">♻ Сброс</button>
+    </div>
+</div>
+
+<div class="modal" id="prestigeModal">
+    <div class="modal-panel">
+        <h2>⭐ ПРЕСТИЖ</h2>
+        <p style="margin-bottom:14px;">Вы получите <b id="prestigeGainModal" style="color:#7df9ff;">0</b> 💎</p>
+        <p style="margin-bottom:14px;">Всё сбросится, но множитель ко всему увеличится навсегда!</p>
+        <button class="bigBtn" id="confirmPrestige" style="width:100%;">Подтвердить</button>
+        <button class="bigBtn alt2" id="cancelPrestige" style="width:100%; margin-top:8px;">Отмена</button>
+    </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// =====================================================
+// CONFIG
+// =====================================================
+
+// Blocks - progression from soft to mythic
+const BLOCKS = [
+    { name:'Земля',          color:'#7c5b3d', accent:'#5a3f25', hp:10,        coins:1,      gems:0,    biome:'surface'  },
+    { name:'Грязь',          color:'#5e4326', accent:'#3e2a14', hp:25,        coins:2,      gems:0,    biome:'surface'  },
+    { name:'Глина',          color:'#a8856b', accent:'#7a5e48', hp:60,        coins:5,      gems:0,    biome:'surface'  },
+    { name:'Песчаник',       color:'#d4b87a', accent:'#a08855', hp:140,       coins:12,     gems:0,    biome:'sand'     },
+    { name:'Камень',         color:'#7a7a7a', accent:'#525252', hp:320,       coins:30,     gems:0,    biome:'stone'    },
+    { name:'Гранит',         color:'#b8806b', accent:'#7a4f3d', hp:750,       coins:75,     gems:1,    biome:'stone'    },
+    { name:'Уголь',          color:'#2a2a2a', accent:'#000000', hp:1800,      coins:180,    gems:1,    biome:'cave'     },
+    { name:'Медь',           color:'#c87533', accent:'#8a4a1a', hp:4200,      coins:420,    gems:2,    biome:'cave'     },
+    { name:'Железо',         color:'#bbbbbb', accent:'#7a7a7a', hp:9800,      coins:980,    gems:3,    biome:'cave'     },
+    { name:'Серебро',        color:'#dde6ee', accent:'#9aa5b0', hp:22000,     coins:2300,   gems:5,    biome:'crystal'  },
+    { name:'Золото',         color:'#ffd700', accent:'#b8860b', hp:50000,     coins:5500,   gems:8,    biome:'crystal'  },
+    { name:'Платина',        color:'#e5e4e2', accent:'#999795', hp:115000,    coins:13000,  gems:12,   biome:'crystal'  },
+    { name:'Изумруд',        color:'#50c878', accent:'#2a8a4a', hp:265000,    coins:31000,  gems:18,   biome:'crystal'  },
+    { name:'Рубин',          color:'#e0115f', accent:'#900a3d', hp:610000,    coins:74000,  gems:26,   biome:'crystal'  },
+    { name:'Сапфир',         color:'#0f52ba', accent:'#063080', hp:1400000,   coins:178000, gems:38,   biome:'crystal'  },
+    { name:'Алмаз',          color:'#7df9ff', accent:'#3aa8b0', hp:3200000,   coins:425000, gems:55,   biome:'deep'     },
+    { name:'Обсидиан',       color:'#1a0a2a', accent:'#000000', hp:7400000,   coins:1020000,gems:80,   biome:'deep'     },
+    { name:'Мифрил',         color:'#aaeeff', accent:'#5a9aaa', hp:17000000,  coins:2450000,gems:115,  biome:'deep'     },
+    { name:'Адамантит',      color:'#a060ff', accent:'#5030a0', hp:39000000,  coins:5900000,gems:165,  biome:'magma'    },
+    { name:'Магма',          color:'#ff4400', accent:'#aa1100', hp:90000000,  coins:14000000,gems:240, biome:'magma'    },
+    { name:'Лава-кристалл',  color:'#ff8800', accent:'#cc4400', hp:210000000, coins:34000000,gems:345, biome:'magma'    },
+    { name:'Космический',    color:'#aa00ff', accent:'#550088', hp:480000000, coins:81000000,gems:500, biome:'void'     },
+    { name:'Звёздная пыль',  color:'#ffffff', accent:'#aaaaff', hp:1.1e9,     coins:1.95e8, gems:720,  biome:'void'     },
+    { name:'Пустотный',      color:'#0a0a2a', accent:'#000000', hp:2.5e9,     coins:4.7e8,  gems:1040, biome:'void'     },
+    { name:'Эфирий',         color:'#aaffee', accent:'#55aabb', hp:5.8e9,     coins:1.13e9, gems:1500, biome:'astral'   },
+    { name:'Драконит',       color:'#ff00aa', accent:'#aa0055', hp:1.3e10,    coins:2.71e9, gems:2150, biome:'astral'   },
+    { name:'Бог-камень',     color:'#ffd700', accent:'#ff8800', hp:3.1e10,    coins:6.5e9,  gems:3100, biome:'mythic'   },
+    { name:'Хаосит',         color:'#ff00ff', accent:'#aa00aa', hp:7.1e10,    coins:1.56e10,gems:4500, biome:'mythic'   },
+    { name:'Антиматерия',    color:'#ffffff', accent:'#ff00ff', hp:1.6e11,    coins:3.75e10,gems:6500, biome:'mythic'   },
+    { name:'Вечность',       color:'#ffd700', accent:'#ffffff', hp:3.8e11,    coins:9.0e10, gems:9500, biome:'eternal'  }
+];
+
+const BIOMES = {
+    surface: { top:'#5a8acc', bot:'#7c5b3d' },
+    sand:    { top:'#e8c889', bot:'#a07a4a' },
+    stone:   { top:'#4a4a5a', bot:'#1a1a25' },
+    cave:    { top:'#2a1a1a', bot:'#0a0505' },
+    crystal: { top:'#4a3a7a', bot:'#1a0a3a' },
+    deep:    { top:'#1a1a3a', bot:'#000010' },
+    magma:   { top:'#aa3300', bot:'#330000' },
+    void:    { top:'#2a0044', bot:'#000000' },
+    astral:  { top:'#aa00aa', bot:'#1a0033' },
+    mythic:  { top:'#ffd700', bot:'#660033' },
+    eternal: { top:'#ffffff', bot:'#000000' }
+};
+
+// Pickaxes - progressive
+const PICKAXES = [
+    { name:'Деревянная',     dmg:1,        crit:0.02, critMul:1.5, coinBonus:0,   cost:0,        currency:'coins' },
+    { name:'Каменная',       dmg:3,        crit:0.03, critMul:1.5, coinBonus:0,   cost:50,       currency:'coins' },
+    { name:'Медная',         dmg:9,        crit:0.04, critMul:1.6, coinBonus:0.1, cost:400,      currency:'coins' },
+    { name:'Железная',       dmg:26,       crit:0.05, critMul:1.7, coinBonus:0.15,cost:3500,     currency:'coins' },
+    { name:'Стальная',       dmg:75,       crit:0.06, critMul:1.8, coinBonus:0.2, cost:30000,    currency:'coins' },
+    { name:'Золотая',        dmg:200,      crit:0.08, critMul:2.0, coinBonus:0.4, cost:250000,   currency:'coins' },
+    { name:'Изумрудная',     dmg:550,      crit:0.10, critMul:2.2, coinBonus:0.5, cost:2200000,  currency:'coins' },
+    { name:'Алмазная',       dmg:1500,     crit:0.12, critMul:2.5, coinBonus:0.7, cost:18000000, currency:'coins' },
+    { name:'Обсидиановая',   dmg:4200,     crit:0.15, critMul:2.8, coinBonus:1.0, cost:150000000,currency:'coins' },
+    { name:'Мифриловая',     dmg:12000,    crit:0.18, critMul:3.0, coinBonus:1.5, cost:1.2e9,    currency:'coins' },
+    { name:'Адамантитовая',  dmg:35000,    crit:0.20, critMul:3.5, coinBonus:2.0, cost:10,       currency:'gems' },
+    { name:'Магмовая',       dmg:100000,   crit:0.22, critMul:4.0, coinBonus:3.0, cost:50,       currency:'gems' },
+    { name:'Космическая',    dmg:300000,   crit:0.25, critMul:5.0, coinBonus:5.0, cost:250,      currency:'gems' },
+    { name:'Звёздная',       dmg:900000,   crit:0.28, critMul:6.0, coinBonus:8.0, cost:1500,     currency:'gems' },
+    { name:'Пустотная',      dmg:2800000,  crit:0.30, critMul:7.0, coinBonus:12,  cost:8000,     currency:'gems' },
+    { name:'Эфирная',        dmg:8500000,  crit:0.33, critMul:8.5, coinBonus:18,  cost:40000,    currency:'gems' },
+    { name:'Драконья',       dmg:26000000, crit:0.36, critMul:10,  coinBonus:25,  cost:200000,   currency:'gems' },
+    { name:'Божественная',   dmg:80000000, crit:0.40, critMul:12,  coinBonus:40,  cost:1000000,  currency:'gems' },
+    { name:'Хаотическая',    dmg:2.5e8,    crit:0.45, critMul:15,  coinBonus:60,  cost:5000000,  currency:'gems' },
+    { name:'Вечности',       dmg:8e8,      crit:0.50, critMul:20,  coinBonus:100, cost:25000000, currency:'gems' }
+];
+
+const UPGRADES = [
+    { id:'dmg',      name:'Сила удара',     desc:'+10% урон',          base:100,    growth:1.5,  max:200, effect:0.10, currency:'coins' },
+    { id:'crit',     name:'Шанс крита',     desc:'+0.5% крит',         base:500,    growth:1.6,  max:80,  effect:0.005, currency:'coins' },
+    { id:'critMul',  name:'Сила крита',     desc:'+10% к крит-урону',  base:1000,   growth:1.7,  max:100, effect:0.10, currency:'coins' },
+    { id:'coins',    name:'Жадность',       desc:'+15% монет',         base:200,    growth:1.55, max:200, effect:0.15, currency:'coins' },
+    { id:'gems',     name:'Магнит самоцветов',desc:'+10% самоцветов',  base:5,      growth:1.6,  max:100, effect:0.10, currency:'gems'  },
+    { id:'lucky',    name:'Удача',          desc:'+1% к ивентам',      base:3,      growth:1.5,  max:50,  effect:0.01, currency:'gems'  }
+];
+
+const AUTO_MINER_LEVELS = [
+    { dps:0,     cost:50,       currency:'coins' },
+    { dps:1,     cost:50,       currency:'coins' },
+    { dps:3,     cost:300,      currency:'coins' },
+    { dps:10,    cost:2000,     currency:'coins' },
+    { dps:40,    cost:18000,    currency:'coins' },
+    { dps:150,   cost:120000,   currency:'coins' },
+    { dps:600,   cost:850000,   currency:'coins' },
+    { dps:2400,  cost:6000000,  currency:'coins' },
+    { dps:10000, cost:40000000, currency:'coins' },
+    { dps:45000, cost:300000000,currency:'coins' },
+    { dps:200000,cost:50,       currency:'gems'  },
+    { dps:900000,cost:250,      currency:'gems'  },
+    { dps:4e6,   cost:1200,     currency:'gems'  },
+    { dps:2e7,   cost:6000,     currency:'gems'  },
+    { dps:1e8,   cost:30000,    currency:'gems'  },
+    { dps:5e8,   cost:150000,   currency:'gems'  },
+    { dps:2.5e9, cost:750000,   currency:'gems'  },
+    { dps:1.2e10,cost:4000000,  currency:'gems'  }
+];
+
+const EVENTS = [
+    { id:'golden', name:'🌟 ЗОЛОТОЙ БЛОК!',     duration:15, desc:'+10x монет',    weight:30 },
+    { id:'frenzy', name:'🔥 БЕРСЕРК!',         duration:20, desc:'+5x урон',      weight:25 },
+    { id:'gemRush',name:'💎 АЛМАЗНЫЙ ДОЖДЬ',   duration:25, desc:'+5x самоцветы', weight:20 },
+    { id:'autoCrit',name:'⚡ ВСЁ — КРИТ!',     duration:10, desc:'100% крит',     weight:15 },
+    { id:'tripleHit',name:'⚔️ ТРОЙНОЙ УДАР!', duration:15, desc:'3 удара за клик',weight:10 }
+];
+
+const ACHIEVEMENTS = [
+    { id:'firstDig', name:'Первый удар',     check:s => s.totalDigs >= 1, reward:5 },
+    { id:'dig100',   name:'100 ударов',      check:s => s.totalDigs >= 100, reward:25 },
+    { id:'dig1k',    name:'1 000 ударов',    check:s => s.totalDigs >= 1000, reward:100 },
+    { id:'dig10k',   name:'10 000 ударов',   check:s => s.totalDigs >= 10000, reward:500 },
+    { id:'blocks10', name:'10 блоков добыто',check:s => s.blocksBroken >= 10, reward:20 },
+    { id:'blocks100',name:'100 блоков',      check:s => s.blocksBroken >= 100, reward:80 },
+    { id:'blocks1k', name:'1 000 блоков',    check:s => s.blocksBroken >= 1000, reward:300 },
+    { id:'depth10',  name:'Глубина 10м',     check:s => s.depth >= 10, reward:30 },
+    { id:'depth20',  name:'Глубина 20м',     check:s => s.depth >= 20, reward:200 },
+    { id:'depth30',  name:'Глубина 30м',     check:s => s.depth >= 30, reward:1000 },
+    { id:'coin1k',   name:'1 000 монет',     check:s => s.totalCoins >= 1000, reward:50 },
+    { id:'coin1m',   name:'1 000 000 монет', check:s => s.totalCoins >= 1e6, reward:500 },
+    { id:'pick5',    name:'Пятая кирка',     check:s => s.maxPickIdx >= 4, reward:50 },
+    { id:'pick10',   name:'10-я кирка',      check:s => s.maxPickIdx >= 9, reward:300 },
+    { id:'pickAll',  name:'Все кирки!',      check:s => s.maxPickIdx >= PICKAXES.length-1, reward:5000 },
+    { id:'prest1',   name:'Первый престиж',  check:s => s.prestiges >= 1, reward:100 }
+];
+
+// =====================================================
+// STATE
+// =====================================================
+
+const defaultState = () => ({
+    coins:0, gems:0, totalCoins:0, totalGems:0,
+    blockIdx:0, blockHp:BLOCKS[0].hp,
+    pickIdx:0, ownedPicks:[true, ...PICKAXES.slice(1).map(()=>false)],
+    depth:0, maxDepth:0,
+    totalDigs:0, blocksBroken:0,
+    upgrades:Object.fromEntries(UPGRADES.map(u=>[u.id, 0])),
+    autoLevel:0,
+    achievements:{},
+    activeEvents:[], // {id, time}
+    combo:1.0, comboTimer:0,
+    prestiges:0, prestigeMul:0,
+    lastSave: Date.now(),
+    maxPickIdx:0
+});
+
+let state = defaultState();
+
+const SAVE_KEY = 'digSimulatorSave_v2';
+
+function load() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        Object.assign(state, defaultState(), saved);
+        // ensure all upgrades exist
+        for (const u of UPGRADES) {
+            if (state.upgrades[u.id] === undefined) state.upgrades[u.id] = 0;
+        }
+        // ensure ownedPicks length
+        while (state.ownedPicks.length < PICKAXES.length) state.ownedPicks.push(false);
+        // offline progress
+        const now = Date.now();
+        const offlineMs = Math.min(now - (state.lastSave || now), 1000 * 60 * 60 * 8);
+        if (offlineMs > 60000 && state.autoLevel > 0) {
+            const dps = AUTO_MINER_LEVELS[state.autoLevel].dps * (1 + state.prestigeMul);
+            const totalDmg = dps * (offlineMs / 1000) * 0.5; // 50% efficiency offline
+            applyOfflineDamage(totalDmg);
+            log(`💤 Оффлайн доход за ${Math.floor(offlineMs/60000)} мин`);
+        }
+    } catch(e) { console.error(e); }
+}
+
+function save() {
+    state.lastSave = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+
+function applyOfflineDamage(totalDmg) {
+    let dmg = totalDmg;
+    let safety = 1000;
+    while (dmg > 0 && safety-- > 0) {
+        const blk = BLOCKS[state.blockIdx];
+        if (dmg >= state.blockHp) {
+            dmg -= state.blockHp;
+            const mult = currentMultipliers();
+            state.coins += Math.floor(blk.coins * mult.coinMul);
+            state.gems += Math.floor(blk.gems * mult.gemMul);
+            state.totalCoins += Math.floor(blk.coins * mult.coinMul);
+            state.totalGems += Math.floor(blk.gems * mult.gemMul);
+            state.blocksBroken++;
+            state.depth++;
+            if (state.depth > state.maxDepth) state.maxDepth = state.depth;
+            state.blockIdx = Math.min(state.blockIdx + (Math.random() < 0.05 ? 1 : 0), BLOCKS.length-1);
+            state.blockHp = BLOCKS[state.blockIdx].hp;
+        } else {
+            state.blockHp -= dmg;
+            dmg = 0;
+        }
+    }
+}
+
+// =====================================================
+// CALCULATIONS
+// =====================================================
+
+function currentMultipliers() {
+    const dmgBase = PICKAXES[state.pickIdx].dmg;
+    const dmgUp = 1 + state.upgrades.dmg * UPGRADES[0].effect;
+    const critChance = Math.min(0.95, PICKAXES[state.pickIdx].crit + state.upgrades.crit * UPGRADES[1].effect);
+    const critMul = PICKAXES[state.pickIdx].critMul + state.upgrades.critMul * UPGRADES[2].effect;
+    const coinMul = (1 + PICKAXES[state.pickIdx].coinBonus + state.upgrades.coins * UPGRADES[3].effect) * (1 + state.prestigeMul);
+    const gemMul = (1 + state.upgrades.gems * UPGRADES[4].effect) * (1 + state.prestigeMul);
+    const luckBonus = state.upgrades.lucky * UPGRADES[5].effect;
+
+    // event modifiers
+    let coinEv = 1, gemEv = 1, dmgEv = 1, critForce = false, tripleHit = false;
+    for (const ev of state.activeEvents) {
+        if (ev.id === 'golden') coinEv *= 10;
+        if (ev.id === 'gemRush') gemEv *= 5;
+        if (ev.id === 'frenzy') dmgEv *= 5;
+        if (ev.id === 'autoCrit') critForce = true;
+        if (ev.id === 'tripleHit') tripleHit = true;
+    }
+
+    return {
+        dmg: dmgBase * dmgUp * dmgEv * (1 + state.prestigeMul) * state.combo,
+        critChance: critForce ? 1 : critChance,
+        critMul,
+        coinMul: coinMul * coinEv,
+        gemMul: gemMul * gemEv,
+        luckBonus,
+        tripleHit
+    };
+}
+
+function upgradeCost(u) {
+    const lvl = state.upgrades[u.id];
+    return Math.floor(u.base * Math.pow(u.growth, lvl));
+}
+
+function autoMinerCost() {
+    if (state.autoLevel >= AUTO_MINER_LEVELS.length - 1) return null;
+    return AUTO_MINER_LEVELS[state.autoLevel + 1];
+}
+
+// =====================================================
+// CORE
+// =====================================================
+
+function digOnce(isAuto = false) {
+    const m = currentMultipliers();
+    let hits = m.tripleHit && !isAuto ? 3 : 1;
+
+    for (let h = 0; h < hits; h++) {
+        let dmg = m.dmg;
+        let isCrit = Math.random() < m.critChance;
+        if (isCrit) dmg *= m.critMul;
+
+        state.blockHp -= dmg;
+        state.totalDigs++;
+
+        if (!isAuto) {
+            state.comboTimer = 2.0;
+            state.combo = Math.min(3, state.combo + 0.03);
+
+            // chance to trigger an event
+            const eventChance = 0.004 + m.luckBonus * 0.5;
+            if (state.activeEvents.length < 2 && Math.random() < eventChance) {
+                triggerRandomEvent();
+            }
+        }
+
+        if (state.blockHp <= 0) {
+            breakBlock();
+        }
+
+        if (!isAuto || Math.random() < 0.1) {
+            spawnFloat(formatNum(Math.floor(dmg)), isCrit ? 'crit' : null);
+        }
+    }
+    shakeScreen();
+}
+
+function breakBlock() {
+    const blk = BLOCKS[state.blockIdx];
+    const m = currentMultipliers();
+    const coinGain = Math.floor(blk.coins * m.coinMul);
+    const gemGain = Math.floor(blk.gems * m.gemMul);
+
+    state.coins += coinGain;
+    state.gems += gemGain;
+    state.totalCoins += coinGain;
+    state.totalGems += gemGain;
+    state.blocksBroken++;
+    state.depth++;
+    if (state.depth > state.maxDepth) state.maxDepth = state.depth;
+
+    // float for rewards
+    if (coinGain > 0) spawnFloat('+' + formatNum(coinGain) + '💰', 'golden-float');
+    if (gemGain > 0) setTimeout(() => spawnFloat('+' + gemGain + '💎', 'gem-float'), 200);
+
+    // progress to next block - sometimes
+    const progressChance = 0.18;
+    if (Math.random() < progressChance && state.blockIdx < BLOCKS.length - 1) {
+        state.blockIdx++;
+    }
+    // sometimes shoot ahead at deeper depths
+    if (state.depth > 0 && state.depth % 50 === 0 && state.blockIdx < BLOCKS.length - 1) {
+        state.blockIdx = Math.min(state.blockIdx + 1, BLOCKS.length - 1);
+        log(`📍 Глубже! Появился: ${BLOCKS[state.blockIdx].name}`);
+    }
+    state.blockHp = BLOCKS[state.blockIdx].hp;
+    blockBreakEffect();
+    updateBiome();
+}
+
+function triggerRandomEvent() {
+    const totalWeight = EVENTS.reduce((s,e) => s + e.weight, 0);
+    let r = Math.random() * totalWeight;
+    let ev;
+    for (const e of EVENTS) {
+        r -= e.weight;
+        if (r <= 0) { ev = e; break; }
+    }
+    if (!ev) ev = EVENTS[0];
+    if (state.activeEvents.find(e => e.id === ev.id)) return;
+    state.activeEvents.push({ id: ev.id, time: ev.duration });
+    showEventBanner(ev.name + ' — ' + ev.desc);
+    log(ev.name);
+}
+
+function buyPickaxe(idx) {
+    if (state.ownedPicks[idx]) {
+        state.pickIdx = idx;
+        log(`⛏ Экипировано: ${PICKAXES[idx].name}`);
+        return;
+    }
+    const p = PICKAXES[idx];
+    if (state[p.currency] < p.cost) return;
+    state[p.currency] -= p.cost;
+    state.ownedPicks[idx] = true;
+    state.pickIdx = idx;
+    if (idx > state.maxPickIdx) state.maxPickIdx = idx;
+    log(`🎉 Куплена: ${p.name}`);
+}
+
+function buyUpgrade(uid) {
+    const u = UPGRADES.find(x => x.id === uid);
+    if (!u) return;
+    if (state.upgrades[uid] >= u.max) return;
+    const cost = upgradeCost(u);
+    if (state[u.currency] < cost) return;
+    state[u.currency] -= cost;
+    state.upgrades[uid]++;
+}
+
+function buyAutoMiner() {
+    const next = autoMinerCost();
+    if (!next) return;
+    if (state[next.currency] < next.cost) return;
+    state[next.currency] -= next.cost;
+    state.autoLevel++;
+    log(`🤖 Автокопатель улучшен!`);
+}
+
+function doPrestige() {
+    const gain = prestigeGain();
+    if (gain <= 0) return;
+    const newPrestigeMul = state.prestigeMul + gain * 0.01;
+    const totalCoinsKept = state.totalCoins;
+    const totalGemsKept = state.totalGems;
+    const prestiges = state.prestiges + 1;
+    const totalDigsKept = state.totalDigs;
+    const blocksBrokenKept = state.blocksBroken;
+    const achievementsKept = state.achievements;
+    const maxDepthKept = state.maxDepth;
+    const maxPickIdxKept = state.maxPickIdx;
+
+    state = defaultState();
+    state.prestigeMul = newPrestigeMul;
+    state.prestiges = prestiges;
+    state.totalCoins = totalCoinsKept;
+    state.totalGems = totalGemsKept;
+    state.totalDigs = totalDigsKept;
+    state.blocksBroken = blocksBrokenKept;
+    state.achievements = achievementsKept;
+    state.maxDepth = maxDepthKept;
+    state.maxPickIdx = maxPickIdxKept;
+    state.gems += gain; // gems are kept and gained
+
+    log(`⭐ Престиж! +${gain}💎, множитель теперь +${(state.prestigeMul*100).toFixed(0)}%`);
+    save();
+}
+
+function prestigeGain() {
+    // award prestige gems based on max depth achieved this run
+    if (state.depth < 15) return 0;
+    return Math.floor(Math.pow(state.depth / 15, 1.6));
+}
+
+// =====================================================
+// RENDER LOOP
+// =====================================================
+
+const canvas = document.getElementById('blockCanvas');
+const ctx = canvas.getContext('2d');
+const mainArea = document.getElementById('mainArea');
+
+function resizeCanvas() {
+    const rect = mainArea.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+}
+window.addEventListener('resize', resizeCanvas);
+setTimeout(resizeCanvas, 50);
+
+const particles = [];
+
+function spawnParticle(x, y, color) {
+    for (let i = 0; i < 6; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 2 + Math.random() * 4;
+        particles.push({
+            x, y,
+            vx: Math.cos(a)*s,
+            vy: Math.sin(a)*s - 2,
+            life: 1,
+            color,
+            size: 3 + Math.random() * 3
+        });
+    }
+}
+
+function blockBreakEffect() {
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const blk = BLOCKS[state.blockIdx];
+    for (let i = 0; i < 30; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 4 + Math.random() * 8;
+        particles.push({
+            x: cx, y: cy,
+            vx: Math.cos(a)*s,
+            vy: Math.sin(a)*s - 3,
+            life: 1.5,
+            color: blk.color,
+            size: 4 + Math.random() * 5
+        });
+    }
+}
+
+function drawBlock() {
+    const w = canvas.width;
+    const h = canvas.height;
+    const size = Math.min(w, h) * 0.45;
+    const cx = w / 2;
+    const cy = h / 2;
+    const blk = BLOCKS[state.blockIdx];
+
+    const hpRatio = state.blockHp / blk.hp;
+    const damageStage = Math.floor((1 - hpRatio) * 5);
+
+    // shadow under block
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + size/2 + 20, size*0.5, 10, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // block — pseudo-3D
+    const x = cx - size/2;
+    const y = cy - size/2;
+
+    // top face
+    ctx.fillStyle = lighten(blk.color, 25);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x + size + 15, y - 15);
+    ctx.lineTo(x + 15, y - 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // right face
+    ctx.fillStyle = darken(blk.color, 15);
+    ctx.beginPath();
+    ctx.moveTo(x + size, y);
+    ctx.lineTo(x + size, y + size);
+    ctx.lineTo(x + size + 15, y + size - 15);
+    ctx.lineTo(x + size + 15, y - 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // front face
+    const grd = ctx.createLinearGradient(x, y, x + size, y + size);
+    grd.addColorStop(0, lighten(blk.color, 10));
+    grd.addColorStop(0.5, blk.color);
+    grd.addColorStop(1, darken(blk.color, 20));
+    ctx.fillStyle = grd;
+    ctx.fillRect(x, y, size, size);
+
+    // texture noise
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, size, size);
+    ctx.clip();
+    const seed = state.blockIdx;
+    for (let i = 0; i < 25; i++) {
+        const sx = x + ((seed * 37 + i * 13) % size);
+        const sy = y + ((seed * 71 + i * 19) % size);
+        const ss = 4 + ((i * 7) % 8);
+        ctx.fillStyle = i % 2 === 0 ? darken(blk.color, 20) : lighten(blk.color, 15);
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(sx, sy, ss, ss);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // crystalline/special block extras
+    if (blk.biome === 'crystal') {
+        ctx.strokeStyle = lighten(blk.color, 40);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + size*0.3, y + size*0.7);
+        ctx.lineTo(x + size*0.5, y + size*0.3);
+        ctx.lineTo(x + size*0.7, y + size*0.7);
+        ctx.lineTo(x + size*0.5, y + size*0.5);
+        ctx.closePath();
+        ctx.stroke();
+    } else if (blk.biome === 'magma') {
+        // glowing veins
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ff4400';
+        ctx.shadowBlur = 10;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            const sx = x + (i * 0.3 + 0.2) * size;
+            ctx.moveTo(sx, y);
+            ctx.lineTo(sx + 10, y + size * 0.4);
+            ctx.lineTo(sx - 5, y + size * 0.8);
+            ctx.lineTo(sx + 5, y + size);
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+    } else if (blk.biome === 'void' || blk.biome === 'astral' || blk.biome === 'mythic' || blk.biome === 'eternal') {
+        // glow
+        ctx.shadowColor = blk.color;
+        ctx.shadowBlur = 25;
+        ctx.strokeStyle = lighten(blk.color, 30);
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, size, size);
+        ctx.shadowBlur = 0;
+        // sparkles
+        const t = performance.now() / 300;
+        for (let i = 0; i < 5; i++) {
+            const px = x + size * (0.2 + 0.6 * ((i * 0.37 + t * 0.1) % 1));
+            const py = y + size * (0.2 + 0.6 * ((i * 0.7 + t * 0.13) % 1));
+            ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + 0.5*Math.sin(t + i)) + ')';
+            ctx.fillRect(px, py, 3, 3);
+        }
+    }
+
+    // damage cracks
+    if (damageStage > 0) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.lineWidth = 2;
+        const cracks = [
+            [[0.5,0.3],[0.45,0.5],[0.55,0.65],[0.5,0.8]],
+            [[0.2,0.4],[0.4,0.5],[0.5,0.45],[0.7,0.55],[0.8,0.7]],
+            [[0.3,0.2],[0.4,0.4],[0.35,0.6]],
+            [[0.7,0.3],[0.6,0.5],[0.75,0.7]],
+            [[0.5,0.5],[0.2,0.2]],
+            [[0.5,0.5],[0.8,0.2]],
+            [[0.5,0.5],[0.2,0.8]],
+            [[0.5,0.5],[0.8,0.8]]
+        ];
+        for (let s = 0; s < damageStage * 2 && s < cracks.length; s++) {
+            const crack = cracks[s];
+            ctx.beginPath();
+            for (let i = 0; i < crack.length; i++) {
+                const px = x + crack[i][0] * size;
+                const py = y + crack[i][1] * size;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // outline
+    ctx.strokeStyle = darken(blk.color, 40);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, size, size);
+
+    // particles
+    for (let i = particles.length-1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.3;
+        p.life -= 0.025;
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+}
+
+function updateBiome() {
+    const blk = BLOCKS[state.blockIdx];
+    const biome = BIOMES[blk.biome] || BIOMES.surface;
+    mainArea.style.setProperty('--bg-top', biome.top);
+    mainArea.style.setProperty('--bg-bot', biome.bot);
+}
+
+function shakeScreen() {
+    mainArea.classList.add('shaking');
+    setTimeout(() => mainArea.classList.remove('shaking'), 120);
+}
+
+let bannerTimeout = null;
+function showEventBanner(text) {
+    const el = document.getElementById('eventBanner');
+    el.textContent = text;
+    el.classList.remove('hidden');
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = 'bannerPulse 0.5s';
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(() => {
+        el.classList.add('hidden');
+    }, 2500);
+}
+
+function spawnFloat(text, cls) {
+    const rect = mainArea.getBoundingClientRect();
+    const x = rect.width / 2 + (Math.random() - 0.5) * 100;
+    const y = rect.height / 2 + (Math.random() - 0.5) * 80;
+    const el = document.createElement('div');
+    el.className = 'floatNum' + (cls ? ' ' + cls : '');
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    mainArea.appendChild(el);
+    setTimeout(() => el.remove(), 1300);
+}
+
+function log(text) {
+    const el = document.createElement('div');
+    el.className = 'logLine';
+    el.textContent = text;
+    document.getElementById('log').appendChild(el);
+    setTimeout(() => el.remove(), 5200);
+    // keep only last 5
+    const lines = document.querySelectorAll('#log .logLine');
+    if (lines.length > 5) lines[0].remove();
+}
+
+// =====================================================
+// UI RENDER
+// =====================================================
+
+function renderHUD() {
+    document.getElementById('coinsLabel').textContent = formatNum(state.coins);
+    document.getElementById('gemsLabel').textContent = formatNum(state.gems);
+    document.getElementById('pickLabel').textContent = PICKAXES[state.pickIdx].name;
+    document.getElementById('depthLabel').textContent = state.depth + 'м';
+    document.getElementById('levelLabel').textContent = 'Прест.' + state.prestiges;
+    document.getElementById('combo').textContent = 'x' + state.combo.toFixed(1);
+
+    const blk = BLOCKS[state.blockIdx];
+    document.getElementById('curBlockName').textContent = blk.name;
+    document.getElementById('hpText').textContent = formatNum(Math.max(0, Math.ceil(state.blockHp))) + '/' + formatNum(blk.hp);
+    document.getElementById('hpFill').style.width = (Math.max(0, state.blockHp / blk.hp) * 100) + '%';
+
+    // active events
+    const evHost = document.getElementById('activeEvents');
+    evHost.innerHTML = '';
+    for (const e of state.activeEvents) {
+        const ev = EVENTS.find(x => x.id === e.id);
+        const chip = document.createElement('div');
+        chip.className = 'eventChip';
+        chip.textContent = ev.name + ' ' + Math.ceil(e.time) + 'с';
+        evHost.appendChild(chip);
+    }
+
+    // auto miner
+    document.getElementById('autoLevel').textContent = state.autoLevel;
+    const dps = state.autoLevel > 0 ? AUTO_MINER_LEVELS[state.autoLevel].dps * (1 + state.prestigeMul) : 0;
+    document.getElementById('autoDps').textContent = formatNum(dps);
+
+    // prestige
+    document.getElementById('prestigeGain').textContent = prestigeGain();
+    document.getElementById('prestigeMul').textContent = '+' + ((state.prestigeMul + prestigeGain() * 0.01) * 100).toFixed(0) + '%';
+}
+
+function renderPickaxes() {
+    const host = document.getElementById('pickaxeList');
+    host.innerHTML = '';
+    PICKAXES.forEach((p, i) => {
+        const owned = state.ownedPicks[i];
+        const equipped = state.pickIdx === i;
+        const canAfford = state[p.currency] >= p.cost;
+        const locked = !owned && i > 0 && !state.ownedPicks[i-1];
+
+        const div = document.createElement('div');
+        div.className = 'shopItem' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '') + (locked ? ' locked' : '');
+        const curIcon = p.currency === 'coins' ? '💰' : '💎';
+        div.innerHTML = `
+            <div class="name">${p.name} <span class="tier-tag">${i+1}</span></div>
+            <div class="stats">Урон: ${formatNum(p.dmg)} • Крит: ${(p.crit*100).toFixed(0)}% (x${p.critMul})${p.coinBonus>0 ? ' • +'+(p.coinBonus*100).toFixed(0)+'%💰' : ''}</div>
+            <button ${equipped ? 'class="equipBtn"' : ''} data-pick="${i}" ${!owned && (!canAfford || locked) ? 'disabled' : ''}>
+                ${equipped ? '✓ Экипирована' : owned ? 'Экипировать' : locked ? '🔒 Заблокирована' : `Купить ${formatNum(p.cost)}${curIcon}`}
+            </button>
+        `;
+        host.appendChild(div);
+    });
+}
+
+function renderUpgrades() {
+    const host = document.getElementById('upgradeList');
+    host.innerHTML = '';
+    UPGRADES.forEach(u => {
+        const lvl = state.upgrades[u.id];
+        const maxed = lvl >= u.max;
+        const cost = upgradeCost(u);
+        const canAfford = state[u.currency] >= cost;
+        const div = document.createElement('div');
+        div.className = 'shopItem';
+        const curIcon = u.currency === 'coins' ? '💰' : '💎';
+        div.innerHTML = `
+            <div class="name">${u.name} <span class="tier-tag">${lvl}/${u.max}</span></div>
+            <div class="stats">${u.desc}</div>
+            <button data-up="${u.id}" ${maxed || !canAfford ? 'disabled' : ''}>
+                ${maxed ? '⭐ МАКС' : `${formatNum(cost)}${curIcon}`}
+            </button>
+        `;
+        host.appendChild(div);
+    });
+}
+
+function renderAutoMiner() {
+    const host = document.getElementById('autoMinerShop');
+    host.innerHTML = '';
+    const next = autoMinerCost();
+    if (!next) {
+        host.innerHTML = '<div style="font-size:12px; text-align:center; color:#ffd700;">⭐ МАКСИМАЛЬНЫЙ УРОВЕНЬ</div>';
+        return;
+    }
+    const canAfford = state[next.currency] >= next.cost;
+    const div = document.createElement('div');
+    div.className = 'shopItem';
+    const curIcon = next.currency === 'coins' ? '💰' : '💎';
+    const nextDps = next.dps * (1 + state.prestigeMul);
+    div.innerHTML = `
+        <div class="name">Уровень ${state.autoLevel + 1}</div>
+        <div class="stats">Будет: ${formatNum(nextDps)} урона/сек</div>
+        <button id="upgradeAuto" ${!canAfford ? 'disabled' : ''}>
+            ${formatNum(next.cost)}${curIcon}
+        </button>
+    `;
+    host.appendChild(div);
+}
+
+function renderStats() {
+    const grid = document.getElementById('statsGrid');
+    grid.innerHTML = `
+        <div>⛏ Ударов: <b>${formatNum(state.totalDigs)}</b></div>
+        <div>🧱 Блоков: <b>${formatNum(state.blocksBroken)}</b></div>
+        <div>🌍 Глубина: <b>${state.depth}м</b></div>
+        <div>📈 Макс: <b>${state.maxDepth}м</b></div>
+        <div>💰 Всего: <b>${formatNum(state.totalCoins)}</b></div>
+        <div>💎 Всего: <b>${formatNum(state.totalGems)}</b></div>
+    `;
+}
+
+function renderAchievements() {
+    const host = document.getElementById('achievementList');
+    host.innerHTML = '';
+    let earned = 0;
+    for (const a of ACHIEVEMENTS) {
+        const done = state.achievements[a.id];
+        if (done) earned++;
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:4px 8px; margin-bottom:3px; border-radius:5px;' +
+            (done ? 'background:rgba(0,150,50,0.3); color:#aaffaa;' : 'background:rgba(0,0,0,0.3); opacity:0.6;');
+        div.innerHTML = `${done ? '✓' : '◯'} ${a.name} <span style="opacity:0.7; font-size:11px;">+${a.reward}💎</span>`;
+        host.appendChild(div);
+    }
+    host.insertAdjacentHTML('afterbegin', `<div style="text-align:center; margin-bottom:6px; opacity:0.8;">${earned}/${ACHIEVEMENTS.length}</div>`);
+}
+
+function renderAll() {
+    renderHUD();
+    renderPickaxes();
+    renderUpgrades();
+    renderAutoMiner();
+    renderStats();
+    renderAchievements();
+}
+
+// =====================================================
+// EVENTS / LOOP
+// =====================================================
+
+let dragDigInterval = null;
+let isMouseDown = false;
+
+document.getElementById('digBtn').addEventListener('click', () => {
+    digOnce();
+});
+mainArea.addEventListener('mousedown', () => { isMouseDown = true; digOnce(); });
+mainArea.addEventListener('mouseup', () => { isMouseDown = false; });
+mainArea.addEventListener('mouseleave', () => { isMouseDown = false; });
+mainArea.addEventListener('click', e => {
+    // already handled on mousedown — skip
+});
+mainArea.addEventListener('touchstart', e => {
+    e.preventDefault();
+    digOnce();
+}, {passive: false});
+
+// click delegation for shop
+document.getElementById('pickaxeList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-pick]');
+    if (!btn) return;
+    buyPickaxe(parseInt(btn.dataset.pick, 10));
+    renderAll();
+    save();
+});
+document.getElementById('upgradeList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-up]');
+    if (!btn) return;
+    buyUpgrade(btn.dataset.up);
+    renderAll();
+    save();
+});
+document.getElementById('autoMinerShop').addEventListener('click', e => {
+    if (e.target.id === 'upgradeAuto') {
+        buyAutoMiner();
+        renderAll();
+        save();
+    }
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+    save();
+    log('💾 Сохранено');
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+    if (confirm('Полностью сбросить весь прогресс?')) {
+        localStorage.removeItem(SAVE_KEY);
+        state = defaultState();
+        renderAll();
+        updateBiome();
+        log('♻ Сброшено');
+    }
+});
+
+document.getElementById('prestigeBtn').addEventListener('click', () => {
+    const g = prestigeGain();
+    if (g <= 0) {
+        log('⛔ Нужна глубина 15м+ для престижа');
+        return;
+    }
+    document.getElementById('prestigeGainModal').textContent = g;
+    document.getElementById('prestigeModal').classList.add('active');
+});
+
+document.getElementById('confirmPrestige').addEventListener('click', () => {
+    document.getElementById('prestigeModal').classList.remove('active');
+    doPrestige();
+    renderAll();
+    updateBiome();
+});
+
+document.getElementById('cancelPrestige').addEventListener('click', () => {
+    document.getElementById('prestigeModal').classList.remove('active');
+});
+
+document.getElementById('leftToggle').addEventListener('click', () => {
+    document.getElementById('leftPanel').classList.toggle('mobileShow');
+});
+document.getElementById('rightToggle').addEventListener('click', () => {
+    document.getElementById('rightPanel').classList.toggle('mobileShow');
+});
+
+// Helpers
+function formatNum(n) {
+    if (n === Infinity) return '∞';
+    if (isNaN(n)) return '0';
+    if (n < 1000) return Math.floor(n).toString();
+    const units = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+    let i = 0;
+    while (n >= 1000 && i < units.length - 1) {
+        n /= 1000;
+        i++;
+    }
+    return n.toFixed(2).replace(/\.?0+$/, '') + units[i];
+}
+
+function lighten(hex, p) {
+    const r = parseInt(hex.substr(1,2),16);
+    const g = parseInt(hex.substr(3,2),16);
+    const b = parseInt(hex.substr(5,2),16);
+    const adj = v => Math.max(0, Math.min(255, v + Math.round(255 * p / 100)));
+    return '#' + [adj(r),adj(g),adj(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+function darken(hex, p) { return lighten(hex, -p); }
+
+// Auto miner & event tick loop
+let lastTick = performance.now();
+let lastAutoApply = 0;
+function tick() {
+    const now = performance.now();
+    const dt = (now - lastTick) / 1000;
+    lastTick = now;
+
+    // combo decay
+    if (state.comboTimer > 0) {
+        state.comboTimer -= dt;
+        if (state.comboTimer <= 0) {
+            state.combo = 1.0;
+        }
+    }
+
+    // event timers
+    for (let i = state.activeEvents.length - 1; i >= 0; i--) {
+        state.activeEvents[i].time -= dt;
+        if (state.activeEvents[i].time <= 0) {
+            state.activeEvents.splice(i, 1);
+        }
+    }
+
+    // auto miner damage
+    if (state.autoLevel > 0) {
+        const dps = AUTO_MINER_LEVELS[state.autoLevel].dps * (1 + state.prestigeMul);
+        const totalDmg = dps * dt;
+        if (totalDmg >= 1) {
+            applyOfflineDamage(totalDmg);
+        }
+    }
+
+    // check achievements every second
+    if (now - lastAutoApply > 500) {
+        lastAutoApply = now;
+        for (const a of ACHIEVEMENTS) {
+            if (!state.achievements[a.id] && a.check(state)) {
+                state.achievements[a.id] = true;
+                state.gems += a.reward;
+                log(`🏆 ${a.name} (+${a.reward}💎)`);
+            }
+        }
+        // periodic save every 30s
+        if (now - (state.lastSave || 0) > 30000) save();
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBlock();
+}
+
+function mainLoop() {
+    tick();
+    draw();
+    renderHUD();
+    requestAnimationFrame(mainLoop);
+}
+
+// re-render shops periodically (cheap enough)
+setInterval(() => {
+    renderPickaxes();
+    renderUpgrades();
+    renderAutoMiner();
+    renderStats();
+    renderAchievements();
+}, 500);
+
+// =====================================================
+// BOOT
+// =====================================================
+
+load();
+updateBiome();
+renderAll();
+requestAnimationFrame(mainLoop);
+
+window.addEventListener('beforeunload', save);
+
+log('⛏ Жми на блок чтобы копать!');
+
+})();
+</script>
+</body>
+</html>

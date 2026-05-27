@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🌱 Grow a Garden</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
+html, body {
+    width:100%; height:100%;
+    overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Comic Sans MS",sans-serif;
+    color:#fff;
+    background: linear-gradient(180deg, #87ceeb 0%, #b9e0a4 60%, #6b8e23 100%);
+    touch-action:manipulation;
+}
+
+#app {
+    width:100vw; height:100vh;
+    display:grid;
+    grid-template-columns: 300px 1fr 300px;
+    grid-template-rows: 70px 1fr;
+    gap:8px;
+    padding:8px;
+    position:relative;
+}
+
+@media (max-width: 1000px) {
+    #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 60px 1fr;
+    }
+    .panel.left, .panel.right { display:none; }
+    .panel.mobileShow {
+        display:flex !important;
+        position:fixed;
+        top:0; bottom:0;
+        z-index:50;
+        width:88%;
+        max-width:340px;
+    }
+    .panel.left.mobileShow { left:0; }
+    .panel.right.mobileShow { right:0; }
+}
+
+#topBar {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(120, 80, 40, 0.95), rgba(80, 50, 20, 0.95));
+    border: 3px solid #5a3a1a;
+    border-radius: 14px;
+    display:flex;
+    align-items:center;
+    padding: 0 16px;
+    gap: 12px;
+    box-shadow: 0 4px 0 #3a2510, 0 6px 20px rgba(0,0,0,0.4);
+    overflow-x:auto;
+    white-space:nowrap;
+}
+
+.stat-box {
+    background: rgba(0,0,0,0.4);
+    border: 2px solid rgba(255,255,255,0.2);
+    padding: 6px 12px;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-weight:700;
+    font-size:14px;
+}
+.stat-box .icon { font-size: 20px; }
+.coin { color:#ffd700; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.gem { color:#7df9ff; }
+.xp-bar {
+    width: 80px;
+    height: 8px;
+    background:rgba(0,0,0,0.5);
+    border-radius:4px;
+    overflow:hidden;
+    margin-top:3px;
+    border:1px solid rgba(255,255,255,0.2);
+}
+.xp-fill {
+    height:100%;
+    background: linear-gradient(90deg, #00ff88, #ffd700);
+    transition: width 0.3s;
+}
+
+.panel {
+    background: linear-gradient(160deg, rgba(60, 100, 50, 0.92), rgba(40, 70, 30, 0.92));
+    border: 3px solid #4a6a2a;
+    border-radius: 14px;
+    padding: 12px;
+    overflow-y: auto;
+    box-shadow: 0 4px 0 #2a4a1a, 0 6px 20px rgba(0,0,0,0.3);
+    display:flex;
+    flex-direction:column;
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffd700;
+    text-shadow: 0 2px 0 #000, 0 0 8px rgba(255,200,0,0.5);
+    margin-bottom: 10px;
+    text-align:center;
+    letter-spacing: 1px;
+}
+
+.tab-row {
+    display:flex;
+    gap:4px;
+    margin-bottom: 10px;
+}
+.tab-btn {
+    flex:1;
+    background: rgba(0,0,0,0.4);
+    color:#fff;
+    border:2px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding:6px 4px;
+    font-weight:700;
+    font-size:12px;
+    cursor:pointer;
+    transition: all 0.2s;
+}
+.tab-btn.active {
+    background: linear-gradient(180deg, #ffcc00, #cc8800);
+    color:#000;
+    border-color:#ffd700;
+    box-shadow: 0 0 12px rgba(255,200,0,0.6);
+}
+
+.tab-content { display:none; flex:1; overflow-y:auto; }
+.tab-content.active { display:block; }
+
+#gardenArea {
+    background: linear-gradient(180deg, #87ceeb 0%, #c8e8b8 50%, #6b8e23 100%);
+    border: 3px solid #4a6a2a;
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 0 #2a4a1a, 0 6px 20px rgba(0,0,0,0.3);
+    transition: background 1s;
+}
+
+#sky {
+    position:absolute;
+    top:0; left:0;
+    width:100%;
+    height:40%;
+    pointer-events:none;
+    overflow:hidden;
+}
+
+.cloud {
+    position:absolute;
+    background: rgba(255,255,255,0.85);
+    border-radius: 50px;
+    box-shadow: 0 0 30px rgba(255,255,255,0.5);
+    animation: drift linear infinite;
+}
+@keyframes drift {
+    from { transform: translateX(-200px); }
+    to { transform: translateX(calc(100vw + 200px)); }
+}
+
+#sun {
+    position:absolute;
+    top: 20px;
+    right: 60px;
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle, #ffff66 0%, #ffaa00 70%, transparent 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 60px #ffaa00;
+    animation: sunPulse 4s ease-in-out infinite;
+    pointer-events:none;
+    z-index: 1;
+}
+@keyframes sunPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.moon { display:none; }
+
+#weatherOverlay {
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index: 3;
+}
+
+.rain-drop {
+    position:absolute;
+    width: 2px;
+    height: 18px;
+    background: linear-gradient(180deg, rgba(150,200,255,0), rgba(150,200,255,0.9));
+    animation: rainFall linear infinite;
+}
+@keyframes rainFall {
+    from { transform: translateY(-30px); }
+    to { transform: translateY(100vh); }
+}
+
+.snow-flake {
+    position:absolute;
+    color: rgba(255,255,255,0.9);
+    font-size: 14px;
+    animation: snowFall linear infinite;
+    pointer-events:none;
+}
+@keyframes snowFall {
+    from { transform: translateY(-30px) rotate(0deg); }
+    to { transform: translateY(100vh) rotate(360deg); }
+}
+
+.lightning {
+    position:absolute;
+    inset:0;
+    background: rgba(255,255,255,0.8);
+    opacity:0;
+    pointer-events:none;
+}
+.lightning.flash {
+    animation: lightFlash 0.4s;
+}
+@keyframes lightFlash {
+    0%, 100% { opacity:0; }
+    20%, 60% { opacity:0.9; }
+}
+
+#plotGrid {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    padding: 14px;
+    background: linear-gradient(180deg, #6a4a2a 0%, #4a3220 100%);
+    border: 4px solid #3a2510;
+    border-radius: 14px;
+    box-shadow: 0 6px 0 #2a1a08, 0 8px 25px rgba(0,0,0,0.5);
+    max-width: 92%;
+    z-index: 2;
+}
+
+@media (max-width: 600px) {
+    #plotGrid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.plot {
+    width: 75px;
+    height: 75px;
+    background: linear-gradient(180deg, #8b6a3f 0%, #5a3e22 100%);
+    border: 2px solid #3a2510;
+    border-radius: 8px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.1);
+    overflow: hidden;
+}
+@media (max-width: 700px) {
+    .plot { width: 60px; height: 60px; }
+}
+@media (max-width: 500px) {
+    .plot { width: 50px; height: 50px; }
+}
+
+.plot:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(255,200,0,0.5);
+    z-index: 4;
+}
+.plot.selected {
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255,200,0,0.8);
+    transform: translateY(-2px);
+}
+.plot.ready {
+    animation: readyGlow 1.2s ease-in-out infinite;
+}
+@keyframes readyGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(0,255,100,0.5); }
+    50% { box-shadow: 0 0 25px rgba(0,255,100,0.9); }
+}
+
+.plant {
+    position:absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    transition: all 0.3s;
+    text-align:center;
+    line-height: 1;
+    pointer-events:none;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.5));
+}
+.plant.stage-0 { font-size: 12px; bottom: 8px; }
+.plant.stage-1 { font-size: 18px; bottom: 6px; }
+.plant.stage-2 { font-size: 26px; bottom: 4px; }
+.plant.stage-3 { font-size: 36px; bottom: 2px; }
+@media (max-width: 700px) {
+    .plant { font-size: 22px; }
+    .plant.stage-3 { font-size: 28px; }
+}
+
+.plant.gold {
+    filter: drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px #ff8800) drop-shadow(1px 2px 3px rgba(0,0,0,0.5));
+}
+.plant.rainbow {
+    animation: rainbowGlow 2s linear infinite;
+}
+@keyframes rainbowGlow {
+    0% { filter: hue-rotate(0deg) drop-shadow(0 0 6px #ff00aa); }
+    50% { filter: hue-rotate(180deg) drop-shadow(0 0 6px #00aaff); }
+    100% { filter: hue-rotate(360deg) drop-shadow(0 0 6px #ff00aa); }
+}
+.plant.frozen {
+    filter: drop-shadow(0 0 6px #00ffff) brightness(1.2);
+}
+.plant.shocked {
+    animation: shockedGlow 0.5s linear infinite;
+}
+@keyframes shockedGlow {
+    0%, 100% { filter: drop-shadow(0 0 6px #ffff00); }
+    50% { filter: drop-shadow(0 0 12px #ffffff) brightness(2); }
+}
+.plant.wet {
+    filter: drop-shadow(0 0 4px #4488ff) brightness(1.1);
+}
+
+.plot-progress {
+    position:absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #44ff44, #ffd700);
+    transition: width 0.3s;
+}
+
+.plot-mutation {
+    position:absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 14px;
+    pointer-events:none;
+    text-shadow: 0 0 4px #000;
+}
+
+.plot-sprinkler {
+    position:absolute;
+    bottom: 2px;
+    left: 2px;
+    font-size: 10px;
+    pointer-events:none;
+}
+
+.plot-locked {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%) !important;
+    cursor: pointer;
+}
+.plot-locked::after {
+    content: '🔒';
+    position:absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+}
+
+#actionBar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+}
+
+.toolBtn {
+    background: linear-gradient(180deg, #6a4a2a, #4a3220);
+    border: 2px solid #3a2510;
+    color: #fff;
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: 700;
+    transition: transform 0.1s;
+    box-shadow: 0 3px 0 #2a1a08;
+}
+.toolBtn:hover { transform: translateY(-2px); }
+.toolBtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #2a1a08; }
+.toolBtn.active {
+    background: linear-gradient(180deg, #ffcc00, #cc8800);
+    color:#000;
+    border-color: #ffd700;
+    box-shadow: 0 3px 0 #aa6600, 0 0 15px rgba(255,200,0,0.6);
+}
+
+.mobile-toggle {
+    display:none;
+    background: rgba(255,255,255,0.2);
+    border:2px solid rgba(255,255,255,0.3);
+    color:#fff;
+    padding:6px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+}
+@media (max-width: 1000px) {
+    .mobile-toggle { display:inline-block; }
+}
+
+.seedCard, .invCard {
+    background: linear-gradient(160deg, rgba(0,0,0,0.4), rgba(0,0,0,0.6));
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position:relative;
+}
+.seedCard:hover {
+    border-color:#ffd700;
+    transform: translateY(-2px);
+    background: linear-gradient(160deg, rgba(50,30,0,0.5), rgba(80,50,0,0.7));
+}
+.seedCard.selected {
+    border-color:#ffd700;
+    box-shadow: 0 0 15px rgba(255,200,0,0.5);
+    background: linear-gradient(160deg, rgba(80,60,0,0.6), rgba(120,80,0,0.7));
+}
+.seedCard.locked { opacity: 0.5; cursor: not-allowed; }
+
+.seed-header {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom: 4px;
+}
+.seed-emoji { font-size: 24px; }
+.seed-name { font-weight: 800; font-size: 14px; flex:1; }
+.seed-rarity {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+.r-common    { background: #888; color: #fff; }
+.r-uncommon  { background: #44aa44; color: #fff; }
+.r-rare      { background: #4488ff; color: #fff; }
+.r-legendary { background: #aa44ff; color: #fff; }
+.r-mythical  { background: #ff44aa; color: #fff; text-shadow: 0 0 4px #fff; }
+.r-divine    { background: linear-gradient(90deg, #ffd700, #ff6b00); color: #000; }
+.r-prismatic { background: linear-gradient(90deg, #ff00ff, #00ffff, #ffff00); color: #000; animation: rainbowBg 3s linear infinite; }
+@keyframes rainbowBg {
+    0%, 100% { filter: hue-rotate(0deg); }
+    50% { filter: hue-rotate(180deg); }
+}
+
+.seed-stats {
+    font-size: 11px;
+    opacity: 0.85;
+    line-height: 1.4;
+}
+.seed-price {
+    background: rgba(255,200,0,0.2);
+    color: #ffd700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 12px;
+    margin-top: 4px;
+    text-align:center;
+}
+
+.seedCard button, .invCard button {
+    background: linear-gradient(180deg, #66cc44, #449922);
+    border: 2px solid #226611;
+    color: #fff;
+    width: 100%;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    margin-top: 4px;
+    box-shadow: 0 2px 0 #114400;
+    transition: transform 0.1s;
+}
+.seedCard button:hover { transform: translateY(-1px); }
+.seedCard button:active { transform: translateY(1px); box-shadow: 0 1px 0 #114400; }
+.seedCard button:disabled {
+    background: linear-gradient(180deg, #666, #444);
+    border-color: #222;
+    box-shadow: 0 2px 0 #111;
+    cursor:not-allowed;
+    opacity: 0.6;
+}
+
+#weatherInfo {
+    background: rgba(0,0,0,0.4);
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    text-align:center;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+#weatherIcon { font-size: 28px; }
+#weatherName { font-weight: 700; margin-top: 4px; }
+#weatherTime { font-size: 11px; opacity: 0.8; }
+
+.toast {
+    position: fixed;
+    top: 90px;
+    right: 12px;
+    background: linear-gradient(135deg, rgba(60,120,40,0.95), rgba(40,80,30,0.95));
+    border: 2px solid #5a8a3a;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: toastSlide 4s forwards;
+    max-width: 300px;
+}
+@keyframes toastSlide {
+    0% { opacity: 0; transform: translateX(120%); }
+    10%, 85% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(20%); }
+}
+
+.floatText {
+    position:absolute;
+    color: #ffd700;
+    font-weight: 800;
+    font-size: 18px;
+    text-shadow: 0 0 6px #000, 1px 2px 3px rgba(0,0,0,0.8);
+    pointer-events:none;
+    animation: floatUp 1.4s forwards;
+    z-index: 6;
+}
+@keyframes floatUp {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -10px) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
+}
+
+.modal {
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.7);
+    z-index: 200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+}
+.modal.active { display:flex; }
+.modal-panel {
+    background: linear-gradient(160deg, rgba(60,100,50,0.98), rgba(40,70,30,0.98));
+    border: 4px solid #ffd700;
+    border-radius: 20px;
+    padding: 24px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(255,200,0,0.6);
+    text-align: center;
+}
+
+.bigBtn {
+    background: linear-gradient(180deg, #66cc44, #449922);
+    border: 3px solid #226611;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 800;
+    font-size: 16px;
+    box-shadow: 0 4px 0 #114400;
+    transition: transform 0.1s;
+    margin: 4px;
+}
+.bigBtn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #114400; }
+.bigBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #114400; }
+.bigBtn.gold { background: linear-gradient(180deg, #ffcc00, #cc8800); border-color: #885500; box-shadow: 0 4px 0 #553300; color: #000; }
+.bigBtn.red { background: linear-gradient(180deg, #ff5544, #cc2211); border-color: #661100; box-shadow: 0 4px 0 #330800; }
+
+#bottomActions {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 5;
+}
+
+.petCard {
+    background: linear-gradient(160deg, rgba(80,40,120,0.6), rgba(40,20,80,0.6));
+    border: 2px solid rgba(200,100,255,0.4);
+    border-radius: 10px;
+    padding: 8px;
+    margin-bottom: 6px;
+}
+.petCard.equipped {
+    border-color: #ffd700;
+    box-shadow: 0 0 15px rgba(255,200,0,0.4);
+}
+
+.achiv {
+    background: rgba(0,0,0,0.3);
+    padding: 6px 8px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+.achiv.done { background: rgba(0,150,50,0.3); color: #aaffaa; }
+
+.inv-count {
+    background: #ffd700;
+    color: #000;
+    border-radius: 12px;
+    padding: 2px 6px;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+/* night mode */
+body.night, #app.night {
+    background: linear-gradient(180deg, #0a0a3a 0%, #1a2a4a 60%, #2a3a1a 100%);
+}
+#app.night #sun { display:none; }
+#app.night .moon {
+    display:block;
+    position:absolute;
+    top: 20px;
+    right: 60px;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ccccdd 60%, #888899 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(200,200,255,0.5);
+    z-index:1;
+}
+#app.night #gardenArea {
+    background: linear-gradient(180deg, #0a0a3a 0%, #2a3a4a 50%, #3a4a23 100%);
+}
+
+#app.frost #gardenArea {
+    background: linear-gradient(180deg, #b8d8e8 0%, #d8e8ff 50%, #88aa77 100%);
+    filter: brightness(0.85) hue-rotate(180deg) saturate(0.7);
+}
+#app.frost #gardenArea::after {
+    content:'';
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(200,230,255,0.3), transparent);
+    pointer-events:none;
+}
+
+#app.rain #gardenArea { background: linear-gradient(180deg, #5a6a7a 0%, #6a7a6a 50%, #4a6a23 100%); }
+#app.thunder #gardenArea { background: linear-gradient(180deg, #2a2a3a 0%, #3a3a4a 50%, #3a4a23 100%); }
+
+#info {
+    position:absolute;
+    top:12px; left:12px;
+    background: rgba(0,0,0,0.4);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight:600;
+    pointer-events:none;
+    z-index: 4;
+    backdrop-filter: blur(4px);
+}
+
+#tooltipBar {
+    position:absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events:none;
+    z-index: 4;
+    border: 1px solid rgba(255,255,255,0.2);
+    text-align:center;
+    max-width: 90%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sellAllBar {
+    background: linear-gradient(180deg, rgba(255,200,0,0.15), rgba(255,140,0,0.15));
+    border: 2px solid rgba(255,200,0,0.5);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    text-align:center;
+}
+</style>
+</head>
+<body>
+<div id="app">
+    <div id="topBar">
+        <button class="mobile-toggle" id="leftToggle">🌱</button>
+        <div class="stat-box"><span class="icon">💰</span><span class="coin" id="moneyLabel">0</span></div>
+        <div class="stat-box"><span class="icon">💎</span><span class="gem" id="gemLabel">0</span></div>
+        <div class="stat-box">
+            <span class="icon">⭐</span>
+            <div>
+                <div>Ур.<span id="lvlLabel">1</span></div>
+                <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+            </div>
+        </div>
+        <div class="stat-box"><span class="icon">🌾</span><span id="harvestedLabel">0</span></div>
+        <div class="stat-box"><span class="icon">📦</span><span id="invSizeLabel">0</span></div>
+        <button class="mobile-toggle" id="rightToggle" style="margin-left:auto">📋</button>
+    </div>
+
+    <div class="panel left" id="leftPanel">
+        <div class="panel-title">🌱 МАГАЗИН СЕМЯН</div>
+        <div class="tab-row">
+            <button class="tab-btn active" data-tab="shop">Магазин</button>
+            <button class="tab-btn" data-tab="inv">Семена</button>
+        </div>
+        <div class="tab-content active" id="tab-shop"></div>
+        <div class="tab-content" id="tab-inv"></div>
+    </div>
+
+    <div id="gardenArea">
+        <div id="sky"></div>
+        <div id="sun"></div>
+        <div class="moon"></div>
+        <div id="weatherOverlay"></div>
+        <div class="lightning" id="lightning"></div>
+
+        <div id="info">
+            <div>🕐 День <span id="dayLabel">1</span> • <span id="timeLabel">06:00</span></div>
+        </div>
+
+        <div id="actionBar">
+            <button class="toolBtn" data-tool="plant" title="Посадить">🌱</button>
+            <button class="toolBtn" data-tool="water" title="Полить">💧</button>
+            <button class="toolBtn" data-tool="harvest" title="Собрать">🧺</button>
+            <button class="toolBtn" data-tool="sprinkler" title="Поставить разбрызгиватель">⛲</button>
+            <button class="toolBtn" data-tool="shovel" title="Удалить">🪏</button>
+        </div>
+
+        <div id="plotGrid"></div>
+
+        <div id="tooltipBar">Выбери семена слева и нажми на грядку!</div>
+
+        <div id="bottomActions">
+            <button class="bigBtn gold" id="sellAllBtn">💰 Продать всё</button>
+            <button class="bigBtn" id="saveBtn" style="padding:8px 14px; font-size:13px;">💾 Сохранить</button>
+        </div>
+    </div>
+
+    <div class="panel right" id="rightPanel">
+        <div class="panel-title">📋 ИНВЕНТАРЬ</div>
+        <div class="tab-row">
+            <button class="tab-btn active" data-tab="harvest">Урожай</button>
+            <button class="tab-btn" data-tab="pets">Питомцы</button>
+            <button class="tab-btn" data-tab="achiv">Цели</button>
+        </div>
+        <div class="tab-content active" id="tab-harvest"></div>
+        <div class="tab-content" id="tab-pets"></div>
+        <div class="tab-content" id="tab-achiv"></div>
+    </div>
+</div>
+
+<div class="modal" id="welcomeModal">
+    <div class="modal-panel">
+        <h1 style="color:#ffd700; text-shadow: 0 2px 0 #000;">🌱 GROW A GARDEN</h1>
+        <p style="margin:14px 0; max-width:400px; line-height:1.5;">
+            Купи семена → Выбери инструмент 🌱 → Кликни на грядку → Жди роста → Собирай и продавай!<br><br>
+            <b>Мутации</b> от погоды дают огромные бонусы! Следи за погодой 🌤
+        </p>
+        <button class="bigBtn gold" id="closeWelcome">▶ Играть!</button>
+    </div>
+</div>
+
+<div class="modal" id="levelUpModal">
+    <div class="modal-panel">
+        <h2 style="color:#ffd700;">⭐ НОВЫЙ УРОВЕНЬ!</h2>
+        <p style="margin:14px 0; font-size:18px;">Уровень <b id="newLvl"></b>!</p>
+        <p style="margin:8px 0;" id="lvlReward"></p>
+        <button class="bigBtn gold" id="closeLvl">Отлично!</button>
+    </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// =========================================================
+// DATA
+// =========================================================
+
+const CROPS = [
+    // Common
+    { id:'carrot',     name:'Морковь',      emoji:'🥕', stages:['🌱','🌿','🥕','🥕'], rarity:'common',   buy:10,     sell:15,     time:8,    unlockLvl:1  },
+    { id:'strawberry', name:'Клубника',     emoji:'🍓', stages:['🌱','🌿','🌸','🍓'], rarity:'common',   buy:25,     sell:40,     time:12,   unlockLvl:1  },
+    { id:'blueberry',  name:'Черника',      emoji:'🫐', stages:['🌱','🌿','🌼','🫐'], rarity:'common',   buy:50,     sell:80,     time:15,   unlockLvl:2  },
+    { id:'tomato',     name:'Томат',        emoji:'🍅', stages:['🌱','🌿','🌸','🍅'], rarity:'common',   buy:80,     sell:130,    time:20,   unlockLvl:2  },
+    // Uncommon
+    { id:'corn',       name:'Кукуруза',     emoji:'🌽', stages:['🌱','🌿','🌾','🌽'], rarity:'uncommon', buy:200,    sell:350,    time:30,   unlockLvl:3  },
+    { id:'watermelon', name:'Арбуз',        emoji:'🍉', stages:['🌱','🌿','🍃','🍉'], rarity:'uncommon', buy:500,    sell:900,    time:45,   unlockLvl:4  },
+    { id:'pumpkin',    name:'Тыква',        emoji:'🎃', stages:['🌱','🌿','🍃','🎃'], rarity:'uncommon', buy:1200,   sell:2200,   time:60,   unlockLvl:5  },
+    { id:'apple',      name:'Яблоня',       emoji:'🍎', stages:['🌱','🌿','🌳','🍎'], rarity:'uncommon', buy:2500,   sell:4700,   time:75,   unlockLvl:6  },
+    // Rare
+    { id:'bamboo',     name:'Бамбук',       emoji:'🎋', stages:['🌱','🌿','🎋','🎋'], rarity:'rare',     buy:5500,   sell:11000,  time:90,   unlockLvl:7  },
+    { id:'coconut',    name:'Кокос',        emoji:'🥥', stages:['🌱','🌿','🌴','🥥'], rarity:'rare',     buy:12000,  sell:25000,  time:120,  unlockLvl:8  },
+    { id:'cactus',     name:'Кактус',       emoji:'🌵', stages:['🌱','🌿','🌵','🌵'], rarity:'rare',     buy:25000,  sell:55000,  time:150,  unlockLvl:10 },
+    { id:'dragonfruit',name:'Драконий фрукт',emoji:'🐉',stages:['🌱','🌿','✨','🐉'], rarity:'rare',     buy:55000,  sell:125000, time:180,  unlockLvl:12 },
+    // Legendary
+    { id:'mango',      name:'Манго',        emoji:'🥭', stages:['🌱','🌿','🌳','🥭'], rarity:'legendary',buy:120000, sell:280000, time:240,  unlockLvl:14 },
+    { id:'pineapple',  name:'Ананас',       emoji:'🍍', stages:['🌱','🌿','🍃','🍍'], rarity:'legendary',buy:260000, sell:620000, time:300,  unlockLvl:16 },
+    { id:'grape',      name:'Виноград',     emoji:'🍇', stages:['🌱','🌿','🍃','🍇'], rarity:'legendary',buy:550000, sell:1350000,time:360,  unlockLvl:18 },
+    { id:'peach',      name:'Персик',       emoji:'🍑', stages:['🌱','🌿','🌳','🍑'], rarity:'legendary',buy:1200000,sell:3000000,time:420,  unlockLvl:20 },
+    // Mythical
+    { id:'mushroom',   name:'Гриб',         emoji:'🍄', stages:['🌱','🍂','🍄','🍄'], rarity:'mythical', buy:2500000,sell:6800000,time:480,  unlockLvl:23 },
+    { id:'beanstalk',  name:'Бобовый стебель',emoji:'🌳',stages:['🌱','🌿','🌳','🌳'], rarity:'mythical', buy:5500000,sell:15500000,time:540, unlockLvl:26 },
+    { id:'cacao',      name:'Какао',        emoji:'🍫', stages:['🌱','🌿','🌳','🍫'], rarity:'mythical', buy:12000000,sell:36000000,time:600,unlockLvl:30 },
+    // Divine
+    { id:'pepper',     name:'Огненный перец',emoji:'🌶️',stages:['🌱','🌿','🔥','🌶️'], rarity:'divine',  buy:30000000,sell:95000000,time:720,unlockLvl:35 },
+    { id:'cursedfruit',name:'Проклятый плод',emoji:'☠️',stages:['🌱','💀','☠️','☠️'],rarity:'divine',   buy:75000000,sell:260000000,time:900,unlockLvl:40 },
+    // Prismatic
+    { id:'sugarapple', name:'Сахарное яблоко',emoji:'🍏',stages:['🌱','🌿','🌳','🍏'],rarity:'prismatic',buy:200000000,sell:780000000,time:1200,unlockLvl:50 },
+    { id:'emberlily',  name:'Лилия Эмбер',  emoji:'🔥', stages:['🌱','🌿','🌺','🔥'], rarity:'prismatic',buy:600000000,sell:2400000000,time:1800,unlockLvl:60 }
+];
+
+const RARITY_ORDER = ['common','uncommon','rare','legendary','mythical','divine','prismatic'];
+
+const MUTATIONS = {
+    gold:    { name:'Золотой',   emoji:'⭐', mul: 20,  chance: 0.01 },
+    rainbow: { name:'Радужный',  emoji:'🌈', mul: 50,  chance: 0.003 },
+    frozen:  { name:'Замороженный',emoji:'❄️',mul: 10,  chance: 0.0 }, // from weather
+    shocked: { name:'Шокированный',emoji:'⚡',mul: 100, chance: 0.0 }, // from thunder
+    wet:     { name:'Мокрый',    emoji:'💧', mul: 2,   chance: 0.0 }, // from rain
+    chilled: { name:'Прохладный',emoji:'🥶', mul: 2,   chance: 0.0 }
+};
+
+const WEATHERS = [
+    { id:'sunny',   name:'Ясно ☀️',     icon:'☀️', duration:90, growthMul:1.0, desc:'Стандартный рост'  },
+    { id:'rain',    name:'Дождь 🌧️',   icon:'🌧️', duration:75, growthMul:1.4, desc:'+40% рост, мокрые культуры', mutations:[{type:'wet',chance:0.5}] },
+    { id:'thunder', name:'Гроза ⛈️',   icon:'⛈️', duration:45, growthMul:1.7, desc:'+70% рост, шанс ⚡!', mutations:[{type:'wet',chance:0.6},{type:'shocked',chance:0.04}] },
+    { id:'frost',   name:'Мороз ❄️',   icon:'❄️', duration:60, growthMul:0.7, desc:'-30% рост, шанс ❄️', mutations:[{type:'chilled',chance:0.3},{type:'frozen',chance:0.06}] },
+    { id:'night',   name:'Ночь 🌙',    icon:'🌙', duration:120,growthMul:0.6, desc:'Ночью растёт медленнее' }
+];
+
+const PETS = [
+    { id:'bee',    name:'Пчёлка',   emoji:'🐝', desc:'+25% к продаже',         buyCost:5000,  effect:{sellMul:0.25} },
+    { id:'rabbit', name:'Кролик',   emoji:'🐰', desc:'+30% скорость роста',    buyCost:25000, effect:{growthMul:0.30} },
+    { id:'cat',    name:'Кот',      emoji:'🐱', desc:'+2% шанс мутаций',       buyCost:120000,effect:{mutBonus:0.02} },
+    { id:'dragon', name:'Дракон',   emoji:'🐲', desc:'+100% к продаже',        buyCost:5000000,effect:{sellMul:1.0} },
+    { id:'unicorn',name:'Единорог', emoji:'🦄', desc:'Все мутации x2',         buyCost:5,     buyCostType:'gem', effect:{mutMul:1.0} }
+];
+
+const ACHIVS = [
+    { id:'firstSeed',  name:'Первая посадка',     check:s => s.totalPlanted >= 1,    reward:50,   xp:10 },
+    { id:'plant10',    name:'10 посадок',         check:s => s.totalPlanted >= 10,   reward:100,  xp:30 },
+    { id:'plant100',   name:'100 посадок',        check:s => s.totalPlanted >= 100,  reward:500,  xp:200 },
+    { id:'plant1k',    name:'1000 посадок',       check:s => s.totalPlanted >= 1000, reward:5000, xp:1000 },
+    { id:'harvest10',  name:'10 урожаев',         check:s => s.totalHarvested >= 10, reward:80,   xp:20 },
+    { id:'harvest100', name:'100 урожаев',        check:s => s.totalHarvested >= 100,reward:400,  xp:150 },
+    { id:'harvest1k',  name:'1000 урожаев',       check:s => s.totalHarvested >= 1000,reward:4000,xp:800 },
+    { id:'firstMut',   name:'Первая мутация',     check:s => s.totalMutations >= 1,  reward:200,  xp:50 },
+    { id:'mut10',      name:'10 мутаций',         check:s => s.totalMutations >= 10, reward:1500, xp:300 },
+    { id:'firstGold',  name:'Золотая мутация ⭐', check:s => s.goldCount >= 1,       reward:1000, xp:100 },
+    { id:'firstRain',  name:'Радужный 🌈',         check:s => s.rainbowCount >= 1,    reward:5000, xp:500 },
+    { id:'firstShock', name:'Шокированный ⚡',     check:s => s.shockCount >= 1,      reward:10000,xp:1000 },
+    { id:'rarityUC',   name:'Необычный сорт',     check:s => s.maxRarityIdx >= 1,    reward:300,  xp:50 },
+    { id:'rarityR',    name:'Редкий сорт',        check:s => s.maxRarityIdx >= 2,    reward:1500, xp:200 },
+    { id:'rarityL',    name:'Легендарный',        check:s => s.maxRarityIdx >= 3,    reward:10000,xp:500 },
+    { id:'rarityM',    name:'Мифический',         check:s => s.maxRarityIdx >= 4,    reward:50000,xp:1500 },
+    { id:'rarityD',    name:'Божественный',       check:s => s.maxRarityIdx >= 5,    reward:200000,xp:5000 },
+    { id:'rarityP',    name:'Призматический!',    check:s => s.maxRarityIdx >= 6,    reward:1000000,xp:20000 },
+    { id:'money1k',    name:'1k монет заработано',check:s => s.totalEarned >= 1000,  reward:50,   xp:30 },
+    { id:'money1m',    name:'1M монет',           check:s => s.totalEarned >= 1e6,   reward:500,  xp:300 },
+    { id:'money1b',    name:'1B монет',           check:s => s.totalEarned >= 1e9,   reward:5000, xp:3000 }
+];
+
+const PLOT_COUNT = 24; // 6x4
+const UNLOCKED_INITIAL = 6;
+
+// =========================================================
+// STATE
+// =========================================================
+
+const defaultState = () => ({
+    money: 100,
+    gems: 0,
+    level: 1,
+    xp: 0,
+    plots: Array.from({length: PLOT_COUNT}, (_,i) => ({
+        unlocked: i < UNLOCKED_INITIAL,
+        crop: null,        // crop id
+        plantedAt: 0,      // ms
+        progress: 0,       // 0..1
+        ready: false,
+        mutations: {},     // {type: true}
+        sprinkler: false,
+        wateredBoost: 0    // remaining time
+    })),
+    seedInventory: {},     // {cropId: count}
+    harvestInventory: {},  // {cropId: [{mutations:{...}}, ...]}
+    pets: {},              // owned pets
+    equippedPet: null,
+    achivs: {},
+    currentWeather: 'sunny',
+    weatherTimer: 90,
+    weatherStreak: 0,
+    day: 1,
+    dayTime: 6,            // 0..24 hours
+    totalPlanted: 0,
+    totalHarvested: 0,
+    totalEarned: 0,
+    totalMutations: 0,
+    goldCount: 0,
+    rainbowCount: 0,
+    shockCount: 0,
+    maxRarityIdx: 0,
+    selectedSeed: null,
+    selectedTool: 'plant',
+    lastSave: Date.now(),
+    welcomed: false,
+    sprinklerCost: 1000
+});
+
+let state = defaultState();
+const SAVE_KEY = 'growGardenSave_v1';
+
+// =========================================================
+// SAVE / LOAD
+// =========================================================
+
+function save() {
+    state.lastSave = Date.now();
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch(e){}
+}
+
+function load() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        // merge defaults to handle new fields
+        const def = defaultState();
+        for (const k in saved) def[k] = saved[k];
+        // ensure plots exist
+        while (def.plots.length < PLOT_COUNT) {
+            def.plots.push({ unlocked: false, crop: null, plantedAt: 0, progress: 0, ready: false, mutations: {}, sprinkler:false, wateredBoost:0 });
+        }
+        state = def;
+
+        // process offline progress
+        const offlineMs = Date.now() - (saved.lastSave || Date.now());
+        if (offlineMs > 5000) {
+            processOffline(offlineMs / 1000);
+        }
+    } catch(e) { console.error(e); }
+}
+
+function processOffline(seconds) {
+    seconds = Math.min(seconds, 60 * 60 * 24); // cap 24h
+    let stepsLeft = seconds;
+    const dt = 1; // 1 second steps; we just simulate
+    while (stepsLeft > 0) {
+        const step = Math.min(stepsLeft, 60); // simulate up to 60s at once
+        tickPlots(step, true);
+        // weather can change offline
+        state.weatherTimer -= step;
+        if (state.weatherTimer <= 0) chooseWeather();
+        stepsLeft -= step;
+    }
+    toast(`💤 Оффлайн прогресс: ${Math.floor(seconds/60)} мин обработано`);
+}
+
+// =========================================================
+// HELPERS
+// =========================================================
+
+function fmt(n) {
+    if (n === Infinity) return '∞';
+    if (isNaN(n)) return '0';
+    n = Math.floor(n);
+    if (n < 1000) return n.toString();
+    const units = ['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+    let i = 0;
+    while (n >= 1000 && i < units.length - 1) {
+        n /= 1000;
+        i++;
+    }
+    return n.toFixed(2).replace(/\.?0+$/, '') + units[i];
+}
+
+function getCrop(id) { return CROPS.find(c => c.id === id); }
+function getPet(id) { return PETS.find(p => p.id === id); }
+function getWeather() { return WEATHERS.find(w => w.id === state.currentWeather); }
+function xpForLevel(lvl) { return Math.floor(50 * Math.pow(1.4, lvl - 1)); }
+
+function petBonus() {
+    const pet = state.equippedPet ? getPet(state.equippedPet) : null;
+    return {
+        sellMul: pet?.effect?.sellMul || 0,
+        growthMul: pet?.effect?.growthMul || 0,
+        mutBonus: pet?.effect?.mutBonus || 0,
+        mutMul: pet?.effect?.mutMul || 0
+    };
+}
+
+function toast(text) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function spawnFloat(text, x, y, color) {
+    const el = document.createElement('div');
+    el.className = 'floatText';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    if (color) el.style.color = color;
+    el.textContent = text;
+    document.getElementById('gardenArea').appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+}
+
+function addXP(amount) {
+    state.xp += amount;
+    while (state.xp >= xpForLevel(state.level)) {
+        state.xp -= xpForLevel(state.level);
+        state.level++;
+        showLevelUp();
+    }
+}
+
+function showLevelUp() {
+    document.getElementById('newLvl').textContent = state.level;
+    const reward = state.level * 50;
+    state.money += reward;
+    if (state.level % 5 === 0) state.gems += 1;
+    document.getElementById('lvlReward').innerHTML = `Награда: <b>+${reward}💰</b>${state.level % 5 === 0 ? ' и <b>+1💎</b>' : ''}<br>Открыты новые семена!`;
+    document.getElementById('levelUpModal').classList.add('active');
+}
+
+// =========================================================
+// PLANTING / GROWTH / HARVEST
+// =========================================================
+
+function plantSeed(plotIdx, cropId) {
+    const plot = state.plots[plotIdx];
+    if (!plot.unlocked) return false;
+    if (plot.crop) {
+        toast('⛔ Грядка занята');
+        return false;
+    }
+    if (!state.seedInventory[cropId] || state.seedInventory[cropId] <= 0) {
+        toast('⛔ Нет семян');
+        return false;
+    }
+    const crop = getCrop(cropId);
+    if (state.level < crop.unlockLvl) {
+        toast(`⛔ Нужен уровень ${crop.unlockLvl}`);
+        return false;
+    }
+    state.seedInventory[cropId]--;
+    plot.crop = cropId;
+    plot.plantedAt = Date.now();
+    plot.progress = 0;
+    plot.ready = false;
+    plot.mutations = {};
+
+    // initial mutations roll (gold/rainbow)
+    rollInitialMutations(plot);
+
+    state.totalPlanted++;
+    const idx = RARITY_ORDER.indexOf(crop.rarity);
+    if (idx > state.maxRarityIdx) state.maxRarityIdx = idx;
+    return true;
+}
+
+function rollInitialMutations(plot) {
+    const bonus = petBonus().mutBonus;
+    const mutMul = 1 + petBonus().mutMul;
+    if (Math.random() < (MUTATIONS.gold.chance * mutMul + bonus)) plot.mutations.gold = true;
+    if (Math.random() < (MUTATIONS.rainbow.chance * mutMul + bonus * 0.3)) plot.mutations.rainbow = true;
+}
+
+function applyWeatherMutations(plot) {
+    const w = getWeather();
+    if (!w.mutations) return;
+    const bonus = petBonus().mutBonus;
+    const mutMul = 1 + petBonus().mutMul;
+    for (const m of w.mutations) {
+        if (!plot.mutations[m.type] && Math.random() < (m.chance * mutMul + bonus * 0.3)) {
+            plot.mutations[m.type] = true;
+            // count rare ones
+            if (m.type === 'shocked') state.shockCount++;
+        }
+    }
+}
+
+function harvestPlot(plotIdx) {
+    const plot = state.plots[plotIdx];
+    if (!plot.crop || !plot.ready) return false;
+    const crop = getCrop(plot.crop);
+    if (!state.harvestInventory[plot.crop]) state.harvestInventory[plot.crop] = [];
+    state.harvestInventory[plot.crop].push({ mutations: {...plot.mutations} });
+
+    const mutCount = Object.keys(plot.mutations).length;
+    if (mutCount > 0) state.totalMutations++;
+    if (plot.mutations.gold) state.goldCount++;
+    if (plot.mutations.rainbow) state.rainbowCount++;
+
+    state.totalHarvested++;
+    addXP(Math.floor(5 + RARITY_ORDER.indexOf(crop.rarity) * 10 + mutCount * 20));
+
+    // reset plot
+    plot.crop = null;
+    plot.progress = 0;
+    plot.ready = false;
+    plot.mutations = {};
+    plot.plantedAt = 0;
+
+    return true;
+}
+
+function sellInventory(specificCropId = null) {
+    let totalEarn = 0;
+    const sellMul = 1 + petBonus().sellMul;
+    for (const cropId in state.harvestInventory) {
+        if (specificCropId && cropId !== specificCropId) continue;
+        const stack = state.harvestInventory[cropId];
+        const crop = getCrop(cropId);
+        if (!crop) continue;
+        let earned = 0;
+        for (const item of stack) {
+            let val = crop.sell;
+            for (const m in item.mutations) {
+                val *= MUTATIONS[m].mul;
+            }
+            val *= sellMul;
+            earned += val;
+        }
+        totalEarn += earned;
+        state.harvestInventory[cropId] = [];
+    }
+    if (totalEarn > 0) {
+        state.money += Math.floor(totalEarn);
+        state.totalEarned += Math.floor(totalEarn);
+        toast(`💰 Продано на ${fmt(totalEarn)}!`);
+        addXP(Math.floor(totalEarn / 100));
+    } else {
+        toast('📦 Инвентарь пуст');
+    }
+}
+
+function buySeed(cropId) {
+    const crop = getCrop(cropId);
+    if (state.level < crop.unlockLvl) {
+        toast(`⛔ Нужен уровень ${crop.unlockLvl}`);
+        return;
+    }
+    if (state.money < crop.buy) {
+        toast('💸 Недостаточно монет');
+        return;
+    }
+    state.money -= crop.buy;
+    state.seedInventory[cropId] = (state.seedInventory[cropId] || 0) + 1;
+    toast(`🌱 ${crop.name} куплено!`);
+}
+
+function buyPet(petId) {
+    const pet = getPet(petId);
+    if (state.pets[petId]) {
+        state.equippedPet = state.equippedPet === petId ? null : petId;
+        return;
+    }
+    if (pet.buyCostType === 'gem') {
+        if (state.gems < pet.buyCost) { toast('💎 Мало самоцветов'); return; }
+        state.gems -= pet.buyCost;
+    } else {
+        if (state.money < pet.buyCost) { toast('💸 Мало монет'); return; }
+        state.money -= pet.buyCost;
+    }
+    state.pets[petId] = true;
+    state.equippedPet = petId;
+    toast(`🎉 ${pet.name} куплен!`);
+}
+
+function unlockNextPlot() {
+    const next = state.plots.findIndex(p => !p.unlocked);
+    if (next === -1) {
+        toast('Все грядки открыты!');
+        return;
+    }
+    const cost = Math.floor(500 * Math.pow(2, next - UNLOCKED_INITIAL));
+    if (state.money < cost) {
+        toast(`Нужно ${fmt(cost)}💰`);
+        return;
+    }
+    state.money -= cost;
+    state.plots[next].unlocked = true;
+    toast(`🎉 Грядка открыта!`);
+}
+
+function placeSprinkler(plotIdx) {
+    const plot = state.plots[plotIdx];
+    if (!plot.unlocked) return;
+    if (plot.sprinkler) {
+        toast('Уже стоит');
+        return;
+    }
+    if (state.money < state.sprinklerCost) {
+        toast(`Нужно ${state.sprinklerCost}💰`);
+        return;
+    }
+    state.money -= state.sprinklerCost;
+    plot.sprinkler = true;
+    state.sprinklerCost = Math.floor(state.sprinklerCost * 1.3);
+    toast('⛲ Разбрызгиватель поставлен!');
+}
+
+function waterPlot(plotIdx) {
+    const plot = state.plots[plotIdx];
+    if (!plot.crop || plot.ready) return;
+    plot.wateredBoost = 8; // 8 seconds of +50% growth
+    spawnFloatOnPlot(plotIdx, '💧+50%');
+}
+
+function shovelPlot(plotIdx) {
+    const plot = state.plots[plotIdx];
+    if (!plot.unlocked) return;
+    if (!plot.crop && !plot.sprinkler) return;
+    if (plot.sprinkler) {
+        if (!confirm('Удалить разбрызгиватель?')) return;
+        plot.sprinkler = false;
+    }
+    plot.crop = null;
+    plot.progress = 0;
+    plot.ready = false;
+    plot.mutations = {};
+    plot.plantedAt = 0;
+    plot.wateredBoost = 0;
+}
+
+function spawnFloatOnPlot(plotIdx, text, color) {
+    const plot = document.querySelectorAll('.plot')[plotIdx];
+    if (!plot) return;
+    const gardenRect = document.getElementById('gardenArea').getBoundingClientRect();
+    const pr = plot.getBoundingClientRect();
+    spawnFloat(text, pr.left - gardenRect.left + pr.width/2, pr.top - gardenRect.top + pr.height/2, color);
+}
+
+// =========================================================
+// TICK
+// =========================================================
+
+function tickPlots(dt, offline=false) {
+    const weather = getWeather();
+    const weatherMul = weather.growthMul;
+    const petMul = 1 + petBonus().growthMul;
+    for (let i = 0; i < state.plots.length; i++) {
+        const plot = state.plots[i];
+        if (!plot.crop || plot.ready) continue;
+        const crop = getCrop(plot.crop);
+
+        let speed = 1 / crop.time;  // fraction per second
+        speed *= weatherMul * petMul;
+        if (plot.sprinkler) speed *= 1.5;
+        if (plot.wateredBoost > 0) {
+            speed *= 1.5;
+            plot.wateredBoost -= dt;
+        }
+
+        plot.progress += speed * dt;
+        if (plot.progress >= 1) {
+            plot.progress = 1;
+            plot.ready = true;
+        }
+        // apply weather mutations once every now and then
+        if (!offline && Math.random() < 0.05 * dt && weather.mutations) {
+            applyWeatherMutations(plot);
+        }
+    }
+}
+
+function chooseWeather() {
+    // bias mostly sunny, occasionally rare weather
+    const r = Math.random();
+    let w;
+    if (state.dayTime > 20 || state.dayTime < 5) {
+        w = WEATHERS.find(x => x.id === 'night');
+    } else if (r < 0.55) w = WEATHERS[0]; // sunny
+    else if (r < 0.75) w = WEATHERS[1]; // rain
+    else if (r < 0.85) w = WEATHERS[2]; // thunder
+    else if (r < 0.95) w = WEATHERS[3]; // frost
+    else w = WEATHERS[Math.floor(Math.random() * (WEATHERS.length - 1))];
+
+    if (w.id !== state.currentWeather) {
+        state.currentWeather = w.id;
+        toast(`🌤 Погода: ${w.name} — ${w.desc}`);
+    }
+    state.weatherTimer = w.duration;
+    updateWeatherDisplay();
+}
+
+function updateWeatherDisplay() {
+    const w = getWeather();
+    document.getElementById('weatherIcon').textContent = w.icon;
+    document.getElementById('weatherName').textContent = w.name;
+
+    const app = document.getElementById('app');
+    app.classList.remove('night','rain','thunder','frost');
+    if (w.id === 'night') app.classList.add('night');
+    if (w.id === 'rain') app.classList.add('rain');
+    if (w.id === 'thunder') app.classList.add('thunder');
+    if (w.id === 'frost') app.classList.add('frost');
+
+    // weather overlay (rain drops, snow, lightning)
+    const overlay = document.getElementById('weatherOverlay');
+    overlay.innerHTML = '';
+    if (w.id === 'rain' || w.id === 'thunder') {
+        const count = w.id === 'thunder' ? 80 : 50;
+        for (let i = 0; i < count; i++) {
+            const d = document.createElement('div');
+            d.className = 'rain-drop';
+            d.style.left = Math.random() * 100 + '%';
+            d.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+            d.style.animationDelay = -Math.random() * 2 + 's';
+            overlay.appendChild(d);
+        }
+    } else if (w.id === 'frost') {
+        for (let i = 0; i < 30; i++) {
+            const s = document.createElement('div');
+            s.className = 'snow-flake';
+            s.textContent = '❄';
+            s.style.left = Math.random() * 100 + '%';
+            s.style.fontSize = (10 + Math.random() * 14) + 'px';
+            s.style.animationDuration = (3 + Math.random() * 5) + 's';
+            s.style.animationDelay = -Math.random() * 5 + 's';
+            overlay.appendChild(s);
+        }
+    }
+}
+
+let lightningTimer = 0;
+function maybeLightning(dt) {
+    if (state.currentWeather !== 'thunder') return;
+    lightningTimer -= dt;
+    if (lightningTimer <= 0) {
+        lightningTimer = 3 + Math.random() * 7;
+        const el = document.getElementById('lightning');
+        el.classList.remove('flash');
+        void el.offsetWidth;
+        el.classList.add('flash');
+    }
+}
+
+// =========================================================
+// CLOUDS (decorative)
+// =========================================================
+
+function initClouds() {
+    const sky = document.getElementById('sky');
+    for (let i = 0; i < 4; i++) {
+        const c = document.createElement('div');
+        c.className = 'cloud';
+        const w = 80 + Math.random() * 120;
+        const h = 30 + Math.random() * 20;
+        c.style.width = w + 'px';
+        c.style.height = h + 'px';
+        c.style.top = (Math.random() * 60) + '%';
+        c.style.animationDuration = (40 + Math.random() * 60) + 's';
+        c.style.animationDelay = -Math.random() * 60 + 's';
+        sky.appendChild(c);
+    }
+}
+
+// =========================================================
+// UI RENDER
+// =========================================================
+
+function renderPlots() {
+    const grid = document.getElementById('plotGrid');
+    if (grid.children.length === 0) {
+        for (let i = 0; i < state.plots.length; i++) {
+            const div = document.createElement('div');
+            div.className = 'plot';
+            div.dataset.idx = i;
+            const plant = document.createElement('div');
+            plant.className = 'plant';
+            div.appendChild(plant);
+            const progress = document.createElement('div');
+            progress.className = 'plot-progress';
+            div.appendChild(progress);
+            const mut = document.createElement('div');
+            mut.className = 'plot-mutation';
+            div.appendChild(mut);
+            const sprink = document.createElement('div');
+            sprink.className = 'plot-sprinkler';
+            div.appendChild(sprink);
+            grid.appendChild(div);
+        }
+    }
+
+    const plots = grid.children;
+    for (let i = 0; i < state.plots.length; i++) {
+        const plot = state.plots[i];
+        const el = plots[i];
+        if (!plot.unlocked) {
+            el.className = 'plot plot-locked';
+            const p = el.querySelector('.plant'); p.textContent = '';
+            el.querySelector('.plot-progress').style.width = '0%';
+            el.querySelector('.plot-mutation').textContent = '';
+            el.querySelector('.plot-sprinkler').textContent = '';
+            continue;
+        }
+        let cls = 'plot';
+        if (plot.ready) cls += ' ready';
+
+        const plant = el.querySelector('.plant');
+        if (plot.crop) {
+            const crop = getCrop(plot.crop);
+            const stageIdx = Math.min(3, Math.floor(plot.progress * 4));
+            plant.textContent = crop.stages[stageIdx];
+            plant.className = 'plant stage-' + stageIdx;
+            for (const m in plot.mutations) {
+                plant.classList.add(m);
+            }
+        } else {
+            plant.textContent = '';
+            plant.className = 'plant';
+        }
+
+        el.querySelector('.plot-progress').style.width = (plot.progress * 100) + '%';
+
+        const muts = Object.keys(plot.mutations);
+        el.querySelector('.plot-mutation').textContent = muts.map(m => MUTATIONS[m].emoji).join('');
+        el.querySelector('.plot-sprinkler').textContent = plot.sprinkler ? '⛲' : '';
+
+        el.className = cls;
+    }
+}
+
+function renderShop() {
+    const host = document.getElementById('tab-shop');
+    host.innerHTML = '';
+    for (const c of CROPS) {
+        const locked = state.level < c.unlockLvl;
+        const canAfford = state.money >= c.buy;
+        const div = document.createElement('div');
+        div.className = 'seedCard' + (locked ? ' locked' : '');
+        div.innerHTML = `
+            <div class="seed-header">
+                <div class="seed-emoji">${c.stages[3]}</div>
+                <div class="seed-name">${c.name}</div>
+                <div class="seed-rarity r-${c.rarity}">${c.rarity.slice(0,3).toUpperCase()}</div>
+            </div>
+            <div class="seed-stats">
+                ⏱ ${c.time}s • 💵 ${fmt(c.sell)} • Ур.${c.unlockLvl}
+            </div>
+            <button data-buy="${c.id}" ${locked || !canAfford ? 'disabled' : ''}>
+                ${locked ? `🔒 Ур.${c.unlockLvl}` : `Купить ${fmt(c.buy)}💰`}
+            </button>
+        `;
+        host.appendChild(div);
+    }
+
+    // unlock plot section
+    const nextPlot = state.plots.findIndex(p => !p.unlocked);
+    if (nextPlot !== -1) {
+        const cost = Math.floor(500 * Math.pow(2, nextPlot - UNLOCKED_INITIAL));
+        const div = document.createElement('div');
+        div.className = 'seedCard';
+        div.style.marginTop = '10px';
+        div.style.borderColor = '#ffd700';
+        div.innerHTML = `
+            <div class="seed-header">
+                <div class="seed-emoji">🌍</div>
+                <div class="seed-name">Открыть грядку</div>
+            </div>
+            <div class="seed-stats">+1 место на ферме</div>
+            <button id="unlockPlot" ${state.money < cost ? 'disabled' : ''}>Открыть ${fmt(cost)}💰</button>
+        `;
+        host.appendChild(div);
+    }
+
+    // sprinkler purchase
+    const sprDiv = document.createElement('div');
+    sprDiv.className = 'seedCard';
+    sprDiv.style.marginTop = '6px';
+    sprDiv.style.borderColor = '#88ddff';
+    sprDiv.innerHTML = `
+        <div class="seed-header">
+            <div class="seed-emoji">⛲</div>
+            <div class="seed-name">Разбрызгиватель</div>
+        </div>
+        <div class="seed-stats">+50% к скорости роста на грядке навсегда</div>
+        <div class="seed-stats" style="color:#88ddff;">Используй инструмент ⛲ потом!</div>
+        <div class="seed-price">${fmt(state.sprinklerCost)}💰</div>
+    `;
+    host.appendChild(sprDiv);
+}
+
+function renderInventory() {
+    const host = document.getElementById('tab-inv');
+    host.innerHTML = '';
+    const seeds = Object.entries(state.seedInventory).filter(([k,v]) => v > 0);
+    if (seeds.length === 0) {
+        host.innerHTML = '<div style="text-align:center; padding:20px; opacity:0.7;">Купи семена в Магазине</div>';
+        return;
+    }
+    for (const [cropId, count] of seeds) {
+        const c = getCrop(cropId);
+        if (!c) continue;
+        const isSelected = state.selectedSeed === cropId;
+        const div = document.createElement('div');
+        div.className = 'seedCard' + (isSelected ? ' selected' : '');
+        div.dataset.select = cropId;
+        div.innerHTML = `
+            <div class="seed-header">
+                <div class="seed-emoji">${c.stages[3]}</div>
+                <div class="seed-name">${c.name}</div>
+                <span class="inv-count">x${count}</span>
+            </div>
+            <div class="seed-stats">⏱ ${c.time}s • 💵 ${fmt(c.sell)}</div>
+            <div style="text-align:center; font-size:11px; color:${isSelected?'#ffd700':'#aaa'}; margin-top:4px;">
+                ${isSelected ? '✓ Выбрано' : 'Нажми чтобы выбрать'}
+            </div>
+        `;
+        host.appendChild(div);
+    }
+}
+
+function renderHarvestInventory() {
+    const host = document.getElementById('tab-harvest');
+    host.innerHTML = '';
+
+    // weather card
+    const w = getWeather();
+    const wDiv = document.createElement('div');
+    wDiv.id = 'weatherInfo';
+    wDiv.innerHTML = `
+        <div id="weatherIcon">${w.icon}</div>
+        <div id="weatherName">${w.name}</div>
+        <div style="font-size:11px; opacity:0.8; margin-top:2px;">${w.desc}</div>
+        <div id="weatherTime">Сменится через ${Math.ceil(state.weatherTimer)}с</div>
+    `;
+    host.appendChild(wDiv);
+
+    // sell-all bar
+    let totalCount = 0;
+    let totalValue = 0;
+    const sellMul = 1 + petBonus().sellMul;
+    for (const [cropId, stack] of Object.entries(state.harvestInventory)) {
+        const c = getCrop(cropId);
+        if (!c) continue;
+        for (const it of stack) {
+            totalCount++;
+            let v = c.sell;
+            for (const m in it.mutations) v *= MUTATIONS[m].mul;
+            totalValue += v * sellMul;
+        }
+    }
+    const sellBar = document.createElement('div');
+    sellBar.id = 'sellAllBar';
+    sellBar.innerHTML = `
+        <div style="font-size:13px; opacity:0.9;">Урожая: <b>${totalCount}</b></div>
+        <div style="font-size:18px; font-weight:800; color:#ffd700; margin:4px 0;">${fmt(totalValue)}💰</div>
+        <button class="bigBtn gold" style="padding:8px 16px; font-size:14px;" id="sellAllInPanel">Продать всё</button>
+    `;
+    host.appendChild(sellBar);
+
+    const items = Object.entries(state.harvestInventory).filter(([,v]) => v.length > 0);
+    if (items.length === 0) {
+        host.innerHTML += '<div style="text-align:center; padding:20px; opacity:0.7;">Соберите урожай для продажи</div>';
+        return;
+    }
+
+    for (const [cropId, stack] of items) {
+        const c = getCrop(cropId);
+        if (!c) continue;
+        // group by mutation set
+        const groups = {};
+        for (const it of stack) {
+            const key = Object.keys(it.mutations).sort().join('+') || 'none';
+            if (!groups[key]) groups[key] = { count:0, muts: it.mutations, value: 0 };
+            let v = c.sell;
+            for (const m in it.mutations) v *= MUTATIONS[m].mul;
+            groups[key].value = v * sellMul;
+            groups[key].count++;
+        }
+        for (const k in groups) {
+            const g = groups[k];
+            const mutText = Object.keys(g.muts).map(m => `${MUTATIONS[m].emoji}${MUTATIONS[m].name}`).join(' ') || '';
+            const div = document.createElement('div');
+            div.className = 'invCard';
+            div.style.cssText = 'background:rgba(0,0,0,0.4); border:2px solid rgba(255,255,255,0.15); border-radius:8px; padding:6px; margin-bottom:4px;';
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:22px;">${c.stages[3]}</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:13px;">${c.name} x${g.count}</div>
+                        <div style="font-size:11px; opacity:0.8;">${mutText || ''}</div>
+                    </div>
+                    <div style="color:#ffd700; font-weight:700; font-size:13px;">${fmt(g.value)}💰</div>
+                </div>
+            `;
+            host.appendChild(div);
+        }
+    }
+}
+
+function renderPets() {
+    const host = document.getElementById('tab-pets');
+    host.innerHTML = '';
+    for (const pet of PETS) {
+        const owned = state.pets[pet.id];
+        const equipped = state.equippedPet === pet.id;
+        const div = document.createElement('div');
+        div.className = 'petCard' + (equipped ? ' equipped' : '');
+        const cur = pet.buyCostType === 'gem' ? '💎' : '💰';
+        div.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:30px;">${pet.emoji}</span>
+                <div style="flex:1;">
+                    <div style="font-weight:700;">${pet.name}</div>
+                    <div style="font-size:11px; opacity:0.85;">${pet.desc}</div>
+                </div>
+            </div>
+            <button data-pet="${pet.id}" style="margin-top:6px;">
+                ${owned ? (equipped ? '✓ Экипирован' : 'Экипировать') : `Купить ${fmt(pet.buyCost)}${cur}`}
+            </button>
+        `;
+        host.appendChild(div);
+    }
+}
+
+function renderAchivs() {
+    const host = document.getElementById('tab-achiv');
+    host.innerHTML = '';
+    let done = 0;
+    for (const a of ACHIVS) {
+        if (state.achivs[a.id]) done++;
+        const div = document.createElement('div');
+        div.className = 'achiv' + (state.achivs[a.id] ? ' done' : '');
+        div.innerHTML = `<span>${state.achivs[a.id] ? '✓' : '◯'} ${a.name}</span><span>+${a.reward}💰 +${a.xp}XP</span>`;
+        host.appendChild(div);
+    }
+    host.insertAdjacentHTML('afterbegin', `<div style="text-align:center; margin-bottom:8px; font-weight:700;">${done} / ${ACHIVS.length}</div>`);
+}
+
+function renderHUD() {
+    document.getElementById('moneyLabel').textContent = fmt(state.money);
+    document.getElementById('gemLabel').textContent = fmt(state.gems);
+    document.getElementById('lvlLabel').textContent = state.level;
+    document.getElementById('xpFill').style.width = (state.xp / xpForLevel(state.level) * 100) + '%';
+    document.getElementById('harvestedLabel').textContent = fmt(state.totalHarvested);
+    let invCount = 0;
+    for (const k in state.harvestInventory) invCount += state.harvestInventory[k].length;
+    document.getElementById('invSizeLabel').textContent = invCount;
+    document.getElementById('dayLabel').textContent = state.day;
+    document.getElementById('timeLabel').textContent = formatGameTime(state.dayTime);
+}
+
+function formatGameTime(t) {
+    const h = Math.floor(t);
+    const m = Math.floor((t - h) * 60);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+function renderTools() {
+    const btns = document.querySelectorAll('.toolBtn');
+    btns.forEach(b => b.classList.toggle('active', b.dataset.tool === state.selectedTool));
+}
+
+function updateTooltip() {
+    const tip = document.getElementById('tooltipBar');
+    const tool = state.selectedTool;
+    if (tool === 'plant') {
+        if (state.selectedSeed) {
+            const c = getCrop(state.selectedSeed);
+            tip.textContent = `🌱 Сажаем: ${c.name}. Нажми на грядку.`;
+        } else {
+            tip.textContent = '🌱 Выбери семена в инвентаре (Семена) и кликни на грядку';
+        }
+    } else if (tool === 'water') {
+        tip.textContent = '💧 Кликни на грядку чтобы полить (+50% рост на 8с)';
+    } else if (tool === 'harvest') {
+        tip.textContent = '🧺 Кликни на готовую грядку чтобы собрать урожай';
+    } else if (tool === 'sprinkler') {
+        tip.textContent = `⛲ Поставить разбрызгиватель (${fmt(state.sprinklerCost)}💰) — +50% рост навсегда`;
+    } else if (tool === 'shovel') {
+        tip.textContent = '🪏 Удалить растение или разбрызгиватель с грядки';
+    }
+}
+
+// =========================================================
+// EVENT WIRING
+// =========================================================
+
+// Plot click
+document.getElementById('plotGrid').addEventListener('click', e => {
+    const plotEl = e.target.closest('.plot');
+    if (!plotEl) return;
+    const idx = parseInt(plotEl.dataset.idx, 10);
+    const plot = state.plots[idx];
+    if (!plot.unlocked) {
+        unlockNextPlot();
+        renderAll();
+        return;
+    }
+    handlePlotAction(idx);
+});
+
+function handlePlotAction(idx) {
+    const plot = state.plots[idx];
+    const tool = state.selectedTool;
+
+    if (tool === 'harvest' || (tool === 'plant' && plot.ready)) {
+        // auto-harvest if ready
+        if (plot.ready) {
+            const crop = getCrop(plot.crop);
+            harvestPlot(idx);
+            spawnFloatOnPlot(idx, `+${crop.name}`);
+        }
+        return;
+    }
+
+    if (tool === 'plant') {
+        if (!state.selectedSeed) {
+            toast('🌱 Выбери семена в Семенах слева');
+            return;
+        }
+        if (plantSeed(idx, state.selectedSeed)) {
+            spawnFloatOnPlot(idx, '🌱');
+        }
+        return;
+    }
+
+    if (tool === 'water') {
+        if (plot.crop) waterPlot(idx);
+        return;
+    }
+
+    if (tool === 'sprinkler') {
+        placeSprinkler(idx);
+        return;
+    }
+
+    if (tool === 'shovel') {
+        shovelPlot(idx);
+        return;
+    }
+}
+
+// Tool buttons
+document.querySelectorAll('.toolBtn').forEach(b => {
+    b.addEventListener('click', () => {
+        state.selectedTool = b.dataset.tool;
+        renderTools();
+        updateTooltip();
+    });
+});
+
+// Tab buttons
+document.querySelectorAll('.tab-row').forEach(row => {
+    row.addEventListener('click', e => {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        const tabName = btn.dataset.tab;
+        row.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        // find all tab-content siblings in same panel
+        const panel = row.parentElement;
+        panel.querySelectorAll('.tab-content').forEach(tc => {
+            tc.classList.toggle('active', tc.id === 'tab-' + tabName);
+        });
+    });
+});
+
+// Shop buy
+document.getElementById('tab-shop').addEventListener('click', e => {
+    const buy = e.target.closest('button[data-buy]');
+    if (buy) {
+        buySeed(buy.dataset.buy);
+        renderAll();
+        save();
+        return;
+    }
+    if (e.target.id === 'unlockPlot') {
+        unlockNextPlot();
+        renderAll();
+        save();
+    }
+});
+
+// Inventory select
+document.getElementById('tab-inv').addEventListener('click', e => {
+    const card = e.target.closest('[data-select]');
+    if (!card) return;
+    state.selectedSeed = card.dataset.select;
+    state.selectedTool = 'plant';
+    renderTools();
+    renderInventory();
+    updateTooltip();
+});
+
+// Pets
+document.getElementById('tab-pets').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-pet]');
+    if (!btn) return;
+    buyPet(btn.dataset.pet);
+    renderAll();
+    save();
+});
+
+// Sell all
+document.getElementById('sellAllBtn').addEventListener('click', () => {
+    sellInventory();
+    renderAll();
+    save();
+});
+document.getElementById('tab-harvest').addEventListener('click', e => {
+    if (e.target.id === 'sellAllInPanel') {
+        sellInventory();
+        renderAll();
+        save();
+    }
+});
+document.getElementById('saveBtn').addEventListener('click', () => {
+    save();
+    toast('💾 Сохранено');
+});
+
+// Mobile toggles
+document.getElementById('leftToggle').addEventListener('click', () => {
+    document.getElementById('leftPanel').classList.toggle('mobileShow');
+});
+document.getElementById('rightToggle').addEventListener('click', () => {
+    document.getElementById('rightPanel').classList.toggle('mobileShow');
+});
+
+document.getElementById('closeWelcome').addEventListener('click', () => {
+    document.getElementById('welcomeModal').classList.remove('active');
+    state.welcomed = true;
+});
+document.getElementById('closeLvl').addEventListener('click', () => {
+    document.getElementById('levelUpModal').classList.remove('active');
+});
+
+// =========================================================
+// CHECK ACHIVS
+// =========================================================
+
+function checkAchivs() {
+    for (const a of ACHIVS) {
+        if (state.achivs[a.id]) continue;
+        if (a.check(state)) {
+            state.achivs[a.id] = true;
+            state.money += a.reward;
+            addXP(a.xp);
+            toast(`🏆 ${a.name} (+${a.reward}💰 +${a.xp}XP)`);
+        }
+    }
+}
+
+// =========================================================
+// MAIN LOOP
+// =========================================================
+
+let lastTick = performance.now();
+let lastAchivCheck = 0;
+let lastRender = 0;
+
+function loop(now) {
+    const dt = Math.min(0.1, (now - lastTick) / 1000);
+    lastTick = now;
+
+    // game time
+    state.dayTime += dt * 0.04; // 25 sec real = 1 hour in-game
+    if (state.dayTime >= 24) {
+        state.dayTime -= 24;
+        state.day++;
+    }
+
+    // weather
+    state.weatherTimer -= dt;
+    if (state.weatherTimer <= 0) chooseWeather();
+
+    tickPlots(dt);
+    maybeLightning(dt);
+
+    // periodic
+    if (now - lastAchivCheck > 1000) {
+        lastAchivCheck = now;
+        checkAchivs();
+    }
+    if (now - lastRender > 200) {
+        lastRender = now;
+        renderHarvestInventory();
+        renderHUD();
+    }
+
+    renderPlots();
+    renderHUD();
+    requestAnimationFrame(loop);
+}
+
+function renderAll() {
+    renderHUD();
+    renderPlots();
+    renderShop();
+    renderInventory();
+    renderHarvestInventory();
+    renderPets();
+    renderAchivs();
+    renderTools();
+    updateTooltip();
+}
+
+// =========================================================
+// BOOT
+// =========================================================
+
+load();
+initClouds();
+updateWeatherDisplay();
+renderAll();
+if (!state.welcomed) {
+    document.getElementById('welcomeModal').classList.add('active');
+}
+
+// re-render shop periodically (prices, locks update)
+setInterval(() => {
+    renderShop();
+    renderInventory();
+    renderPets();
+    renderAchivs();
+}, 1500);
+
+setInterval(save, 15000);
+window.addEventListener('beforeunload', save);
+
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
